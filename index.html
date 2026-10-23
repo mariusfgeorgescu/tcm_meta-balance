@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MetaBalance — Profil Metabolic TCM & Ray Peat</title>
+<meta name="description" content="Analiză metabolică combinând diagnosticul TCM cu principiile pro-metabolice Ray Peat. Datele rămân 100% pe dispozitivul tău.">
+<meta name="theme-color" content="#d97706">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-stone-50">
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useMemo } = React;
+const { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } = Recharts;
+
+
+
+/* ============================================================
+   MetaBalance PRO — profil metabolic profund:
+   · TCM: principiile celor 8, tipare de organe, 10 constituții,
+     5 elemente, anotimpuri, Yin/Yang
+   · Ray Peat: tiroidă, cortisol, estrogen, glicemie, inflamație,
+     intestin, alimente, suplimente
+   Datele rămân 100% locale, pe dispozitiv.
+   ============================================================ */
+
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+
+const THEMES = {
+  light: {
+    page: "bg-stone-50", card: "bg-white", text: "text-stone-800", sub: "text-stone-500",
+    border: "border-stone-200", accent: "bg-amber-600", accentText: "text-amber-700",
+    chip: "bg-stone-100 text-stone-700", chipOn: "bg-amber-600 text-white",
+    input: "bg-stone-50 border-stone-300 text-stone-800", soft: "bg-stone-50",
+  },
+  dark: {
+    page: "bg-stone-950", card: "bg-stone-900", text: "text-stone-100", sub: "text-stone-400",
+    border: "border-stone-700", accent: "bg-amber-500", accentText: "text-amber-400",
+    chip: "bg-stone-800 text-stone-300", chipOn: "bg-amber-500 text-stone-900",
+    input: "bg-stone-800 border-stone-600 text-stone-100", soft: "bg-stone-950",
+  },
+};
+
+/* ============================== DATE & REGULI ============================== */
+
+const SYMPTOM_GROUPS = [
+  {
+    g: "Energie & termoreglare",
+    items: ["Oboseală persistentă", "Mâini/picioare reci", "Senzație de căldură după-amiaza/seara", "Transpirații nocturne", "Fălcii roșii", "Frig interior (abdomen/spate rece)"],
+  },
+  {
+    g: "Digestie",
+    items: ["Balonare / digestie lentă", "Tranzit moale / nestatornic", "Constipație uscată", "Gaze după leguminoase", "Disconfort după alimente crude", "Poftă de dulce", "Foame puternică + slăbiciune dacă nu mănânc"],
+  },
+  {
+    g: "Somn & psiho-emoțional",
+    items: ["Somn neodihnitor", "Trezește între 1–3 noaptea", "Trezește între 3–5 dimineața", "Anxietate / agitație", "Depresie / dispoziție joasă", "Iritabilitate / furie ușoară", "Dificultăți de concentrare", "Somnolență frecventă / pesantă"],
+  },
+  {
+    g: "Hormoni & structură",
+    items: ["Cicl menstrual dureros / cheaguri", "Sâni sensibili înainte de ciclu (SPM)", "Chisturi mamare / fibroame uterine diagnosticate", "Retenție de apă / edeme", "Libido scăzut", "Căderea părului", "Piele uscată / mată", "Umflături ganglionare frecvente", "Dureri articulare / rigiditate matinală", "Crăpături la colțuri / buze uscate"],
+  },
+  {
+    g: "Cardio & glicemie",
+    items: ["Amețeală la ridicare", "Palpitații", "Tremur/agitație dacă trec multe ore fără mâncare", "Somnolență puternică după masă", "Creștere în greutate ușoară", "Senzație de „ceață“ mentală"],
+  },
+];
+const ALL_SYMPTOMS = SYMPTOM_GROUPS.flatMap(g => g.items);
+
+const TCM_SIGNS = {
+  temp: [
+    { id: "cold", label: "Prefer căldura, mi-e frig des" },
+    { id: "neutral", label: "Temperatura e normală" },
+    { id: "hot", label: "Prefer răcoarea, mi-e cald des" },
+    { id: "mixed", label: "Frig sus / cald jos sau combinație (foc flotant)" },
+  ],
+  tongueBody: [
+    { id: "pale", label: "Palidă, umedă" },
+    { id: "normal", label: "Rozie, moderată" },
+    { id: "red", label: "Roșie / uscată" },
+    { id: "crimson", label: "Roșie închisă / mov-roșiatică / pete" },
+    { id: "swollen", label: "Umflată, cu urme de dinți" },
+  ],
+  tongueCoat: [
+    { id: "thin", label: "Depozit subțire alb (normal)" },
+    { id: "thick", label: "Depozit gros alb (umezeală/flegmă)" },
+    { id: "yellow", label: "Depozit galben (căldură)" },
+    { id: "dry", label: "Depozit uscat / fisuri (usăciune)" },
+    { id: "none", label: "Fără depozit, lucioasă (Yin golit)" },
+  ],
+  thirst: [
+    { id: "littleWarm", label: "Sete mică, prefer băuturi calde" },
+    { id: "normal", label: "Sete normală" },
+    { id: "muchCold", label: "Sete mare, prefer băuturi reci" },
+    { id: "night", label: "Sete cu urinare abundentă (mai ales noaptea)" },
+  ],
+  stool: [
+    { id: "loose", label: "Moale / nestatornic" },
+    { id: "normal", label: "Normal, format, 1–2/zi" },
+    { id: "dry", label: "Uscat, ca „mărgică“ / dificil" },
+    { id: "thin", label: "Subțire, ca panglica / creionul" },
+    { id: "greasy", label: "Gruros, lucios, miroase puternic / plutește" },
+    { id: "urgent", label: "Urgent, mirositor, arzător (căldură)" },
+  ],
+  stoolFreq: [
+    { id: "multi", label: "De 2–3 ori pe zi, formate" },
+    { id: "daily", label: "O dată pe zi" },
+    { id: "every2", label: "La 2–3 zile o dată" },
+    { id: "rare", label: "Mai rar de o dată la 3 zile" },
+    { id: "alternating", label: "Alternant: zile de constipație, apoi scaune moi" },
+  ],
+  sweat: [
+    { id: "little", label: "Transpir foarte puțin" },
+    { id: "normal", label: "Normal" },
+    { id: "profuse", label: "Transpir abundent la efort mic" },
+    { id: "nightOnly", label: "Transpir în principal noaptea" },
+  ],
+  sleep: [
+    { id: "ok", label: "Adorm ușor, dorm adânc" },
+    { id: "fallHard", label: "Greu de adormit (gânduri care se învârt)" },
+    { id: "wake13", label: "Mă trezesc 1–3 noaptea" },
+    { id: "wake35", label: "Mă trezesc 3–5 dimineața" },
+  ],
+  emotion: [
+    { id: "flat", label: "Aplatizat, fără voință, trist" },
+    { id: "irritable", label: "Iritabil, frustrat, tensiune" },
+    { id: "anxious", label: "Anxios, inimă bubuind, gânduri rapide" },
+    { id: "apathic", label: "Frică moartă / apatie profundă" },
+  ],
+  pain: [
+    { id: "none", label: "Nu am dureri relevante" },
+    { id: "dullFixed", label: "Sură, fixă, se agravează cu frigul / apăsarea" },
+    { id: "wandering", label: "Migratoare, vine din senin" },
+    { id: "burning", label: "Ardere, se ameliorează la rece" },
+  ],
+  digestionRaw: [
+    { id: "bad", label: "Cruditățile mă balonează imediat" },
+    { id: "ok", label: "Le tolerrez bine" },
+    { id: "craving", label: "Le poftesc, dar apoi mă simt greu" },
+  ],
+};
+
+/* --- examen fizic auto (semne obiective) --- */
+const EXAM = {
+  sublingual: [
+    { id: "normal", label: "Subțiri, abia vizibile" },
+    { id: "dark", label: "Două vene groase, întunecate la culoare" },
+    { id: "varicose", label: "Groase, întunecate, sinuoase/varicoase" },
+  ],
+  fatDist: [
+    { id: "abdomen", label: "Abdomen („burtă de bere“)", pt: { damp: 2, spleenQi: 1 } },
+    { id: "hips", label: "Șolduri/coapse (formă de par)", pt: { damp: 1, kidneyYang: 1 } },
+    { id: "upper", label: "Trunchi/umeri/fața (formă de măr)", pt: { liverFire: 1, damp: 1 } },
+    { id: "uniform", label: "Uniform pe tot corpul", pt: {} },
+    { id: "none", label: "Nu am exces de grăsime", pt: {} },
+  ],
+  complexion: [
+    { id: "pale", label: "Palidă / albă", pt: { heartBlood: 2, spleenQi: 1 } },
+    { id: "sallow", label: "Galbenă-mată", pt: { damp: 2, spleenQi: 1 } },
+    { id: "red", label: "Roșie, mai ales fața", pt: { liverFire: 2 } },
+    { id: "cheeks", label: "Doar pomeții roșii (seara)", pt: { kidneyYin: 2 } },
+    { id: "dusky", label: "Închisă / buze violacee", pt: { bloodStasis: 2, kidneyYang: 1 } },
+    { id: "normal", label: "Normală", pt: {} },
+  ],
+  eyesNails: [
+    { id: "floaters", label: "Puncte/musculițe care plutesc în câmpul vizual", pt: { heartBlood: 1, liverQi: 1 } },
+    { id: "dryEyes", label: "Ochi uscați, senzație de nisip", pt: { kidneyYin: 1, heartBlood: 1 } },
+    { id: "brittleNails", label: "Unghii fragile / cu dungi albe", pt: { heartBlood: 1, kidneyYang: 1 } },
+    { id: "noLunula", label: "Lunulele de la unghii mici sau invizibile", pt: { kidneyYang: 1, bloodStasis: 1 } },
+    { id: "coldHands", label: "Mâinile devin albastre/albe la frig", pt: { kidneyYang: 1 } },
+    { id: "gums", label: "Gingii care sângerează ușor", pt: { spleenQi: 2 } },
+    { id: "eyebrows", label: "Sprâncene rare în treimea externă (semn Hertoghe)", pt: { kidneyYang: 1 } },
+  ],
+  tender: [
+    { id: "trapezius", label: "Trapez / umeri încordați și sensibili", pt: { liverQi: 2 } },
+    { id: "ribs", label: "Sub coaste în dreapta, la apăsat (zona ficatului)", pt: { liverQi: 2 } },
+    { id: "lumbar", label: "Lombar dureros la apăsat", pt: { kidneyYang: 2 } },
+    { id: "st36", label: "Sub genunchi, lateral de os (punct Stomac 36)", pt: { spleenQi: 2 } },
+    { id: "sp6", label: "Deasupra gleznei interioare (Splină 6)", pt: { kidneyYin: 1, spleenQi: 1 } },
+    { id: "temples", label: "Tâmple sensibile la apăsat", pt: { liverFire: 1, liverQi: 1 } },
+    { id: "betweenBlades", label: "Spate între omoplați, dureros", pt: { heartBlood: 1, lungQi: 1 } },
+    { id: "knees", label: "Genunchi slăbiți, dor noaptea / la frig", pt: { kidneyYang: 2 } },
+  ],
+  skinZones: [
+    { id: "forehead", label: "Frunte (Splină/Inimă — digestie, procesare mentală)", pt: { spleenQi: 1 }, ax: { gut: 3 }, hit: "bube pe frunte — „oglinzi“ ale Splinei/digestiei" },
+    { id: "temples", label: "Tâmple & frunte lateral (Vezica biliară/Ficat)", pt: { liverQi: 1, liverFire: 1 }, ax: {}, hit: "" },
+    { id: "glabella", label: "Între sprâncene (Ficat/Stomac)", pt: { liverQi: 1 }, ax: {}, hit: "" },
+    { id: "nose", label: "Vârful & aripile nasului (Stomac/Splenă)", pt: { spleenQi: 1, damp: 1 }, ax: { gut: 3 }, hit: "" },
+    { id: "cheeks", label: "Pomeți (Plămâni/Stomac)", pt: { lungQi: 1 }, ax: { inflammation: 3 }, hit: "" },
+    { id: "mouth", label: "Jurul gurii & bărbie (Splină / Rinichi-hormoni)", pt: { spleenQi: 1, kidneyYin: 1 }, ax: { estrogen: 5 }, hit: "bube pe bărbie/maxilar — zonă hormonală (Rinichi, androgeni/estrogen)" },
+    { id: "chest", label: "Piept & spate (hormoni, Ficat/Vezica biliară)", pt: { liverFire: 1 }, ax: { estrogen: 4 }, hit: "" },
+  ],
+  skinMarks: [
+    { id: "redDots", label: "Puncte roșii mici, proeminente — hemangioame „cireșe“ (mai multe în ultimii ani)", pt: { bloodStasis: 2, liverFire: 1 }, ax: { estrogen: 4 }, hit: "hemangioame cireșe — TCM: căldură & stază în Sânge; viziune pro-metabolică: asociate cu exces de estrogen/cupru" },
+    { id: "spiderNevi", label: "Angioame în „păianjen“ (punct roșu cu „picioare“)", pt: { liverFire: 2, bloodStasis: 1 }, ax: { estrogen: 6 }, hit: "angioame spider — semn clasic de ficat suprasolicitat și estrogen neopus" },
+    { id: "skinTags", label: "Excrescențe moi pe gât/axile (acrochordonuri)", pt: { damp: 2 }, ax: { bloodSugar: 6 }, hit: "acrochordonuri — asociate cu rezistență la insulină" },
+    { id: "melasma", label: "Pete maro pe obraji/frunte (melasmă)", pt: { liverQi: 2, bloodStasis: 1 }, ax: { estrogen: 5 }, hit: "melasmă — pigmentare tipic estrogenică, ficatul nu mai „gestionează“ estrogenul" },
+    { id: "manyMoles", label: "Multe alunițe / pigmente noi apărute", pt: { bloodStasis: 1, liverQi: 1 }, ax: {}, hit: "" },
+    { id: "petechiae", label: "Petesii — puncte roșii plate, nu se decolorează la apăsat", pt: { bloodStasis: 2, spleenQi: 1 }, ax: {}, hit: "" },
+    { id: "darkPatches", label: "Piele mătăsoasă, închisă la pliouri (gât, axile) — acantoză", pt: { damp: 2, spleenQi: 1 }, ax: { bloodSugar: 8 }, hit: "acantoză nigricans — marker cutanat al rezistenței la insulină" },
+  ],
+  stairs: [
+    { id: "easy", label: "3 etaje fără să mă opresc, respir normal" },
+    { id: "mild", label: "Gâfâi ușor la 2–3 etaje, mă recuperez repede" },
+    { id: "hard", label: "Mă opresc / evit scările, picioare grele la 1–2 etaje" },
+    { id: "very", label: "Chiar și un etaj e efort; amețesc" },
+  ],
+  tsh: [
+    { id: "unknown", label: "Nu știu / nu am analizat recent" },
+    { id: "low", label: "TSH sub 1" },
+    { id: "ok", label: "TSH între 1 și 2" },
+    { id: "high", label: "TSH între 2 și 4" },
+    { id: "vhigh", label: "TSH peste 4" },
+    { id: "hypo", label: "Hipotiroidism diagnosticat (medicație sau nu)" },
+    { id: "hashi", label: "Hashimoto / anticorpi tiroidieni pozitivi" },
+  ],
+  menopause: [
+    { id: "na", label: "Nu se aplică" },
+    { id: "regular", label: "Ciclu regulat" },
+    { id: "irregular", label: "Ciclu neregulat" },
+    { id: "peri", label: "Peri-menopauză (simptome, ciclu instabil)" },
+    { id: "meno", label: "Menopauză instalată" },
+    { id: "post", label: "Post-menopauză" },
+  ],
+};
+
+/* --- protocol presopunctură / reflexoterapie / tai chi pe tipar --- */
+const ACU = {
+  liverQi: { title: "Deblocarea Qi-ului de Ficat (stagnare)", points: [
+    { n: "LV-3 (Taichong)", loc: "pe dorsul piciorului, în șanțul între oasele metatarsiene 1 și 2", how: "masaj circular ferm 1–2 min/parte, dimineața — punctul clasic al decongestionării Ficatului" },
+    { n: "GB-34 (Yanglingquan)", loc: "sub genunchi, în gropița din fața capului fibulei", how: "apăsare 30 sec × 3, ori de câte ori simți tensiune/iritabilitate" },
+    { n: "LV-14 (Qimen)", loc: "sub linia coastelor, pe verticala mameloanelor", how: "apăsat blând în timp ce respiri adânc, 5 respirații lente" },
+  ], reflex: "zona Ficatului pe talpă (arcul medial) și baza degetului mare", tai: "Mișcarea ariei Ficatului: lateroflexii lente ale trunchiului + rotații de talie în stil Qigong, 5 min dimineața; mersul în parc, zilnic, e „medicamentul“ clasic al Ficatului." },
+  liverFire: { title: "Răcirea Focului de Ficat", points: [
+    { n: "LV-2 (Xingjian)", loc: " între degetele 1 și 2 de la picior, la baza lor", how: "apăsare fermă 1 min/parte — punct care „scurge“ căldura Ficatului" },
+    { n: "GB-20 (Fengchi)", loc: "în șanțurile de sub occiput, ambele părți", how: "presiune blândă 1 min pentru cefalee/ochi — răcește Yang-ul care urcă" },
+    { n: "Taiyang (tâmple)", loc: "în scobirea tâmplelor", how: "masaj circular blând 1 min cu degetele mijlocii" },
+  ], reflex: "zona Ficatului + zona ochiului (baza degetelor 2–3) pe talpă", tai: "Qigong „Trăgând Luna“: coborârea brațelor lent cu expirație lungă — „coboară“ Yang-ul; evită sportul competitiv și soarele de amiază." },
+  spleenQi: { title: "Tonifierea Spleen-ului (focul digestiv)", points: [
+    { n: "ST-36 (Zusanli)", loc: "3 lățimi de palmă sub rotulă, la un deget lateral de creasta tibială", how: "apăsare fermă 1 min/parte, înainte de mese — cel mai folosit punct de tonifiere din TCM" },
+    { n: "SP-6 (Sanyinjiao)", loc: "4 lățimi de deget deasupra gleznei interioare, chiar lângă os", how: "masaj blând circular 1 min/parte (evită în sarcină)" },
+    { n: "CV-12 (Zhongwan)", loc: "pe linia mediană a abdomenului, la jumătatea dintre ombilic și baza sternului", how: "masaj în sensul acelor de ceasornic 2 min, după masă" },
+  ], reflex: "zona Stomacului (arcul central al tălpii) și zona pancreasului", tai: "Din Ba Duan Jin („Cele 8 broderii“): mișcarea 3 „Ridicarea unui singur braț“ — întindere verticală alternativă, 6 repetări, tonifică Splina și Stomacul; mănâncă fără grabă, mestecând de 30 de ori." },
+  damp: { title: "Uscarea Umezelii / transformarea flegmei", points: [
+    { n: "SP-9 (Yinlingquan)", loc: "sub genunchi, pe partea interioară, în șanțul de sub rotulă", how: "apăsare fermă 1 min/parte — punctul principal de drenaj al Umezelii" },
+    { n: "ST-40 (Fenglong)", loc: "la 2 lățimi de palmă sub rotulă, la două degete lateral de creasta tibială", how: "apăsare fermă 1 min/parte — „transformă flegma“" },
+    { n: "ST-36 (Zusanli)", loc: "sub rotulă, lateral de creasta tibială", how: "1 min/parte, pentru focul digestiv care arde Umezeala" },
+  ], reflex: "zona Spleen-ului (arcul medial al tălpii) + sistemul limfatic (palparea întregii tălpi)", tai: "Mersul e regele tău: 10 min după fiecare masă; Qigong „Norii care se rostogolesc“ — rotații ample ale trunchiului, 3–5 min; evită poziția șezândă prelungită." },
+  kidneyYang: { title: "Reîncălzirea Yang-ului de Rinichi", points: [
+    { n: "KD-3 (Taixi)", loc: "în mijlocul liniei dintre vârful gleznei interioare și tendonul lui Ahile", how: "masaj cald 1 min/parte, seara; încălzește-ți palmele înainte" },
+    { n: "BL-23 (Shenshu)", loc: "lombar, la 2 lățimi de deget lateral de coloană, la nivelul ombilicului", how: "tapotament cu pumnii moi / frecare 1 min dimineața" },
+    { n: "CV-4 + CV-6 (Guanyuan / Qihai)", loc: "pe linia mediană, la 2 respectiv 3 lățimi de deget sub ombilic", how: "palma caldă așezată 3 min, respirând adânc în abdomen (tan tien)" },
+  ], reflex: "zona Rinichiului (centrul tălpii) — masează cu cremă caldă, 3–5 min", tai: "Genuflexiuni lente (Ma Bu „poziția călărețului“) 2–3 min; Qigong „Îmbrățișarea copacului“ (Zhan Zhuang) 5 min; NU înot în apă rece, NU dușuri reci — căldura e terapia ta." },
+  kidneyYin: { title: "Hrănirea Yin-ului de Rinichi (seara)", points: [
+    { n: "KD-3 (Taixi)", loc: "între vârful gleznei interioare și tendonul lui Ahile", how: "masaj foarte blând 1 min/parte, seara — Yin-ul se hrănește în liniște" },
+    { n: "KD-6 (Zhaohai)", loc: "sub vârful gleznei interioare, în scobitură", how: "apăsare ușoară 1 min/parte, înainte de culcare" },
+    { n: "HT-7 (Shenmen)", loc: "pe pliul încrețit al palmei, spre degetul mic", how: "masaj blând 2 min — calmează Shen-ul (spiritul) și somnul" },
+  ], reflex: "zona Rinichiului + zona urechii (degetul mare, baza) pe talpă", tai: "Zhan Zhuang („statul ca un copac“) 5 min în liniște + „Spălarea feței cu energie“ (Qigong facial, palme calde pe față) înainte de culcare; culcarea înainte de 23:00 este tratamentul principal — Yin-ul se produce noaptea." },
+  heartBlood: { title: "Hrănirea Sângelui de Inimă", points: [
+    { n: "HT-7 (Shenmen)", loc: "pe pliul palmei, spre degetul mic", how: "masaj blând 2 min seara — „poarta spiritului“" },
+    { n: "SP-6 (Sanyinjiao)", loc: "deasupra gleznei interioare", how: "1 min/parte — punctul care hrănește Sângele (Splina îl produce)" },
+    { n: "BL-15 (Xinshu)", loc: "pe spate, la nivelul vertebrei T5, 2 lățimi lateral", how: "ceră cuiva să apese blând 1 min, sau rulou de prosop sub spate" },
+  ], reflex: "zona Inimii (eminența thenar + arcul anterior) pe talpă", tai: "Tai Chi „Deschiderea pieptului“: brațe deschid orizontal lent, cu respirație profundă; rutină de seară liniștită, fără ecran 1h înainte de culcare." },
+  heartYin: { title: "Calmează Focul vid al Inimii", points: [
+    { n: "HT-7 (Shenmen)", loc: "pe pliul palmei, spre degetul mic", how: "masaj blând 2 min înainte de somn" },
+    { n: "PC-6 (Neiguan)", loc: "pe partea interioară a antebrațului, 2 lățimi de deget peste pliul încheieturii", how: "apăsare 1 min/parte — anxietate, palpitații, greață; poți folosi și pe timpul zilei" },
+    { n: "KI-6 (Zhaohai)", loc: "sub vârful gleznei interioare", how: "1 min/parte seara — leagă Inima de Yin-ul de Rinichi" },
+  ], reflex: "zona Inimii + zona „solar plexus“ (arcul anterior) pe talpă", tai: "Respirația 4-7-8 culcat + „Meditația surâzândă“ a Qigong-ului (5 min); evită știrile violente și discuțiile pe seara." },
+  lungQi: { title: "Întărirea Qi-ului de Plămân", points: [
+    { n: "LU-7 (Lieque)", loc: "pe partea interioară a antebrațului, deasupra încheieturii (lat. police), în scobire", how: "masaj 1 min/parte — punctul principal al Plămânului" },
+    { n: "LU-9 (Taiyuan)", loc: "pe pliul încheieturii, sub degetul mare, la pulsul radial", how: "masaj blând 1 min/parte, dimineața" },
+    { n: "ST-36 (Zusanli)", loc: "sub rotulă, lateral de creasta tibială", how: "1 min/parte — Plămânul se hrănește din Qi-ul general" },
+  ], reflex: "zona Plămânului (degetele mari + baza) pe talpă", tai: "Respirația Plămânului: inspirație 4 secunde pe nas, expirație 8 pe gură, 5 min dimineața în aer curat; Tai Chi „Mâinile împing norii“ — mișcări ample ale brațelor sincronizate cu respirația." },
+  bloodStasis: { title: "Mișcarea Sângelui stazat", points: [
+    { n: "SP-10 (Xuehai — „Marea Sângelui“)", loc: "pe fața interioară a coapsei, la 2 lățimi de palmă deasupra rotulei", how: "apăsare fermă 1 min/parte — punctul clasic al circulației Sângelui" },
+    { n: "LV-3 (Taichong)", loc: "dorsul piciorului, între metatarsienele 1–2", how: "masaj ferm 1 min/parte — Ficatul depozitează Sângele, tot el îl mișcă" },
+    { n: "BL-17 (Geshu)", loc: "pe spate, la nivelul T7, 2 lățimi lateral", how: "apăsare blândă 1 min — punctul „Hui“ al Sângelui" },
+  ], reflex: "zona Ficatului + zona uterului/prostatei (talpă medială, călcâi intern) pe talpă", tai: "Mișcare zilnică obligatorie: plimbare 30–45 min + Qigong „Ridicarea și coborârea mâinilor cu bobocirea picioarelor“ (circulație); NU stat prelungit la birou fără pauze la 50 min." },
+  stomachYin: { title: "Umezirea Stomacului (Yin gastric)", points: [
+    { n: "ST-36 (Zusanli)", loc: "sub rotulă, lateral de creasta tibială", how: "masaj blând 1 min/parte, înainte de mese mici și dese" },
+    { n: "CV-12 (Zhongwan)", loc: "mijlocul dintre ombilic și stern", how: "palma caldă așezată 3 min înainte de masă" },
+    { n: "SP-6 (Sanyinjiao)", loc: "deasupra gleznei interioare", how: "masaj blând 1 min/parte — hrănește lichidele" },
+  ], reflex: "zona Stomacului (arcul central) pe talpă, cu mișcări umede/lente", tai: "Qigong „Măturarea stomacului“: masaj abdominal în sens orar + mers ușor după mesele mici; mese mici și dese, supe-gelatină, pere coapte." },
+};
+
+const EDUCATION = [
+  { h: "🧪 PUFA — motorul îmbătrânirii metabolice (Peat)", p: [
+    "Grăsimile polinesaturate (uleiuri de semințe, nuci, semințe prăjite, margarină, pești grași mari) se oxidează ușor chiar la temperatura corporală: peroxidarea lor produce aldehide reactive (4-HNE, acroleină, malondialdehidă) care „cositoresc“ proteine, lipide și ADN. Pentru Peat, acesta e mecanismul central al îmbătrânirii și al bolilor degenerative.",
+    "Asimetria cheie: grăsimile saturate (unt, cocos) circulă câteva ore în ser și se ard curat, iar depozitarea lor e minimă; PUFA se încorporează în membranele celulare și în țesutul adipos, cu un timp de înjumătățire de aproximativ 2 ani. De aceea trecerea la grăsimi saturate începe să se simtă după săptămâni, dar reînnoirea completă a membranelor durează luni-ani.",
+    "Tiroida e prima lovită: PUFA inhibă secreția tiroidiană și conversia T4→T3 în ficat, cresc TBG (proteina transportoare — mai mult hormon „legat“, mai puțin activ liber) și reduc răspunsului celular la T3. De aceea scorul tău tiroidian penalizează sever consumul de uleiuri.",
+    "Lanțul pe termen lung: oxidare cronică → inflamație de grad scăzut → rezistență la insulină, LDL peroxidat (ateroscleroză), steatoză hepatică non-alcoolică; Peat leagă PUFA și de risc oncologic (membrane rigide, imunosupresie, proliferare). Femeile la menopauză sunt dublu vulnerabile: estrogenul relativ dominant intensifică efectele proliferative ale PUFA.",
+    "Antidotul practic: elimină complet uleiurile de semințe, gătește cu unt/cocos, vitamina E în tranziție (cea mai bună „vitamină anti-PUFA“), fructe și cofactori antioxidanți, proteine cu gelatină. Vitamina A + D + K susțin tocmai enzimele pe care PUFA le blochează.",
+  ]},
+  { h: "♀️ Estrogen vs. progesteron — proliferator și paznic", p: [
+    "Estrogenul e hormonul „constructor“: stimulează diviziunea celulară (sâni, endometriu, țesut adipos), reține apă și sodiu (edeme), crește TBG și blochează acțiunea tiroidei, e pro-coagulant și, în exces, imunosupresiv. Progesteronul e „paznicul“: anti-proliferativ, sedativ natural pe receptorii GABA (somn liniștit), stabilizează tiroida și imunitatea.",
+    "Dezechilibrul real nu e mereu „estrogen mare“, ci adesea „progesteron mic“: anovulația (stres, post, peri-menopauză) elimină corpul galben → aproape zero progesteron → estrogenul rămâne neoprit chiar și la valori de laborat „normale“. Cortizolul cronic fură direct precursorul progesteronului.",
+    "La menopauză: ovarele opresc progesteronul aproape complet, dar țesutul adipos și suprarenalele continuă să producă estronă (E1). Raportul estrogen/progesteron se prăbușește — „estrogen neopus“. Exact aici, spune Peat, își au originea: fibroamele care cresc în ultimii ani pre-menopauză, fibroza chistică mamar, riscul de cancer mamar și endometrial, osteoporoza (contrar dogmei, el asociază pierderea osoasă cu estrogenul neopos + cortizol, nu cu lipsa de estrogen) și declinul cognitiv (progesteronul e neuroprotector).",
+    "Detectorii pe care i-ai completat în aplicație (edeme ciclice, SPM, sâni sensibili, fibroame/chisturi) sunt exact semnalele timpurii ale acestui dezechilibru — fiecare penalizează axa estrogen din raportul tău.",
+    "Ce face diferența în practică: PUFA eliminat (cresc sensibilitatea țesuturilor la estrogen), vitamina E (anti-estrogenică directă), vitamina A (receptorul T3 cere retinol), crucifere gătite (indolii I3C/DIM orientează estrogenul pe calea protectivă 2-OH, nu pe cea proliferativă 16-α), proteine suficiente, somn — iar progesteronul bioidentic rămâne o opțiune strict medicală, în situații confirmate.",
+  ]},
+  { h: "🌡️ Tiroida — de ce „TSH > 2“ contează (Peat)", p: [
+    "Laboratoarele raportează adesea „normal“ până la TSH 4–4,5 mUI/L. Peat și școala tiroidiană susțin că intervalul optim e mult mai strâns: TSH sub 2, însoțit de semne funcționale — temperatură axilară dimineața peste 36,5°C, puls de repaus 60–75 bpm, energie stabilă, mâini calde.",
+    "Un TSH între 2 și 4 = hipofiza „strigă“ la o tiroidă care răspunde slab; nu e încă boală, dar e teren pe care se construiesc oboseala, Damp-ul și stagnarea. Anticorpi pozitivi (TPO/Tg) = Hashimoto, unde dieta e doar suport, nu tratament.",
+    "De aceea aplicația e sensibilă: temperatura axilară matinală și pulsul pe care le-ai introdus cântăresc greu în scorul tiroidian, la fel ca semnul Hertoghe (sprâncene rare extern), toleranța la scări și statusul TSH cunoscut.",
+    "Blocantele tiroidei, în ordinea importanței: PUFA, post/skipping mese, cortizol cronic, estrogen neopos, goitrogenii în doze mari din crude. Deblocantele: carbohidrați suficienți (fructe, cartopi, orez, miere), seleniu + zinc + vitamină A, proteine cu gelatină, somn și lumină naturală dimineața.",
+  ]},
+];
+
+const PEAT_HABITS = [
+  { id: "pufa", label: "Uleiuri vegetale / semințe / margarină des", axis: { thyroid: 3, inflammation: 3 }, peat: "PUFA blochează tiroida și mitocondriile" },
+  { id: "nofruit", label: "Evit fructele / zahărul din principiu", axis: { thyroid: 2 }, peat: "fructele hrănesc metabolismul" },
+  { id: "fasting", label: "Post intermitent / mese rare", axis: { cortisol: 3, bloodSugar: 2 }, peat: "cortisol crescut, descompune mușchiul" },
+  { id: "stress", label: "Stres cronic, puțină destindere", axis: { cortisol: 3, estrogen: 1 }, peat: "cortisol și estrogen se cresc reciproc" },
+  { id: "norest", label: "Dorm sub 7 ore / somn perturbat", axis: { cortisol: 2, thyroid: 1 }, peat: "somnul reglează toate axele" },
+  { id: "cardio", label: "Cardio prelungit / antrenamente epuizante", axis: { thyroid: 2, cortisol: 2 }, peat: "cortisol + conversie inversă T3" },
+  { id: "nosun", label: "Expunere minimă la soare / lumină", axis: { thyroid: 1, inflammation: 1 }, peat: "lumina susține tiroida și vitamina D" },
+  { id: "legumes", label: "Leguminoase (fasole uscată, linte) zilnic", axis: { thyroid: 1, gut: 1 }, peat: "lectine + amidon rezistent iritant" },
+  { id: "brans", label: "Multe tărâțe / fibre „obligatorii“", axis: { gut: 2 }, peat: "irită intestinul și leagă mineralele" },
+  { id: "dietproducts", label: "Produse „dietetice“ / îndulcitori", axis: { bloodSugar: 1 }, peat: "dezreglează sațietatea și glicemia" },
+  { id: "alcohol", label: "Alcool regulat (3+/săpt)", axis: { gut: 1, cortisol: 1 }, peat: "toxic hepatic, scade metabolismul" },
+  { id: "eatinglate", label: "Masa principală târziu seara", axis: { gut: 1 }, peat: "" },
+  { id: "undereating", label: "Mâncam puțin de frică de kilograme", axis: { thyroid: 2, bloodSugar: 1 }, peat: "sub-alimentație = tiroidă joasă" },
+];
+
+/* --- constituții TCM (tipare) --- */
+const PATTERNS = {
+  spleenQi: { name: "Deficiență Qi de Splină", organ: "Splenă", desc: "Focul digestiv scăzut: oboseală după masă, scaun moale, balonare, poftă de dulce.", element: "Pământ" },
+  kidneyYang: { name: "Deficiență Yang de Rinichi", organ: "Rinichi", desc: "Focul vieții scăzut: frig lombar/genunchi, urinare nocturnă, libidou scăzut, apatie.", element: "Apă" },
+  kidneyYin: { name: "Deficiență Yin de Rinichi", organ: "Rinichi", desc: "Uscăciune + căldură vidă: transpirații nocturne, fălcii roșii, tinitus, insomnie.", element: "Apă" },
+  liverQi: { name: "Stagnare Qi de Ficat", organ: "Ficat", desc: "Qi blocat: iritabilitate, dureri migratoare, senzație de minge în gât, trezire 1–3.", element: "Lemn" },
+  liverFire: { name: "Foc de Ficat / Yang care urcă", organ: "Ficat", desc: "Căldură care urcă: cefalee pulsantă, ochi roșii, iritabilitate explozivă, gust amar.", element: "Lemn" },
+  heartBlood: { name: "Deficiență Sânge de Inimă", organ: "Inimă", desc: "Inima nehrănită: palpitații, insomnie cu vise multe, memorie slabă, paloare.", element: "Foc" },
+  heartYin: { name: "Deficiență Yin de Inimă", organ: "Inimă", desc: "Agitație nocturnă, palpitații seara, „wired“ la culcare, limba roșie la vârf.", element: "Foc" },
+  lungQi: { name: "Deficiență Qi de Plămân", organ: "Plămân", desc: "Imunitate slabă, răceli repetate, voce slabă, transpir la efort mic.", element: "Metal" },
+  damp: { name: "Umezeală / Flegmă", organ: "Splenă", desc: "Stagnare lichidiană: greutate, limbă cu depozit gros, ceață mentală, greutate în corp.", element: "Pământ" },
+  bloodStasis: { name: "Stază de Sânge", organ: "Ficat", desc: "Circulație blocată: limbă mov, dureri fixe, cheaguri menstruale, pete, piele uscată-scalp.", element: "Lemn" },
+  stomachYin: { name: "Deficiență Yin de Stomac", organ: "Stomac", desc: "Uscăciune gastrică: foame fără poftă, constipație uscată, arsuri ușoare.", element: "Pământ" },
+};
+
+
+/* --- axa metabolică Peat --- */
+const PEAT_AXES = {
+  thyroid: { name: "Funcție tiroidiană (estimat)", desc: "Temperatură, energie, toleranță la frig, metabolism bazal." },
+  cortisol: { name: "Axul stresului (cortisol)", desc: "Wired & tired, treziri nocturne, poftă serală, post frecvent." },
+  estrogen: { name: "Echilibru estrogen/progesteron", desc: "Retenție de apă, SPM, dispoziție ciclică, umflături ganglionare." },
+  bloodSugar: { name: "Stabilitate glicemică", desc: "Crash-uri, foame urgentă, agitație fără mâncare, somnolență postprandială." },
+  inflammation: { name: "Inflamație", desc: "Dureri articulare, PIELE/răspunsuri reactive, PUFA, lipsă de soare." },
+  gut: { name: "Sănătate intestinală", desc: "Balonare, tranzit instabil, intoleranțe, depozit lingual gros." },
+};
+
+/* --- alimente: structurate pe categorii --- */
+const FOOD_FAVOR = [
+  { cat: "Proteine", items: [
+    { n: "Gelatină / colagen hidrolizat / bulion de oase", tcm: "hrănește Yin-ul digestiv și lichidele; echilibrează „răceala“ cărnii", peat: "glicină anti-inflamatoare; echilibrează triptofanul; protejează intestinul", note: "cel mai „de acord“ aliment dintre ambele sisteme" },
+    { n: "Carne roșie (vită) moderată, în sosuri", tcm: "tonifică Qi și Sângele", peat: "fier hem, B12, zinc, fosfor — susțin respirația celulară" },
+    { n: "Ficat (de vită, 1–2×/săpt)", tcm: "tonic de Sânge și de Ficat — hrănește ochii, unghiile", peat: "retinol natural, B12, cupru — anti-estrogenic natural" },
+    { n: "Ouă gătite (3–5/zi dacă tolerate)", tcm: "hrănește Yin și Sânge", peat: "colină + proteine complete; gălbenușul = vitamine liposolubile" },
+    { n: "Creveți / scoici mici", tcm: "tonifică Yang de Rinichi", peat: "iod + proteine ușor digerabile" },
+    { n: "Lapte cald (dacă e tolerat; începe cu 50 ml)", tcm: "hrănește Yin și lichidele", peat: "calciu:fosfor ideal, lactoză pentru metabolism, sedativ ușor" },
+  ]},
+  { cat: "Carbohidrați", items: [
+    { n: "Cartofi copți / fierți", tcm: "tonifică Qi-ul Spleen-ului dacă sunt calde", peat: "potasiu excelent, carbohidrat sigur, aproape fără grăsimi pro-inflamatorii" },
+    { n: "Orez alb bine fiert", tcm: "digestie ușoară, hrănește Qi fără Umezeală excesivă", peat: "energie rapidă pentru ficat și tiroidă" },
+    { n: "Fructe coapte: portocale, cireșe, mere coapte", tcm: "temperată la temperatura camerei; hrănește lichidele", peat: "fructoză+potasiu scad cortizolul; vitamina C din fructe" },
+    { n: "Miere (1–2 lingurițe)", tcm: "tonifică Qi-ul, moderat la Umezeală", peat: "raport ideal glucoză/fructoză pentru metabolism" },
+    { n: "Zahăr alb în cafea/lapte (moderat)", tcm: "folosit ca tonic doar în doze mici", peat: "susține tiroida dacă proteinele sunt suficiente" },
+    { n: "Pâine cu maia (maturată)", tcm: "digestie mai bună decât drojdia instant", peat: "amidon rezistent mai puțin; mănâncă cu unt nu cu ulei" },
+  ]},
+  { cat: "Grăsimi", items: [
+    { n: "Unt (grass-fed)", tcm: "hrănește Yin-ul, lubrifiază uscăciunea", peat: "grăsimi saturate sigure, vitamina A naturală" },
+    { n: "Ulei de cocos (pentru gătit)", tcm: "încălzește, usucă flegma", peat: "MCT — energie rapidă, antimicrobian ușor" },
+    { n: "Ulei de măsline extra (neîncălzit, moderat)", tcm: "neutral-umed", peat: "mono-nesaturate, relativ stabil" },
+    { n: "Smântână/fermente lactate în doze mici", tcm: "pot genera Umezeală la constituțiile cu flegmă — altfel hrănesc", peat: "sursă de energie rapidă dacă tolerezi lactoza" },
+  ]},
+  { cat: "Băuturi & condimente", items: [
+    { n: "Cafea cu zahăr/lapte (dimineața)", tcm: "mobilizează Qi; excesul golește Yin", peat: "susține metabolismul și dispoziția; conduce tiroida" },
+    { n: "Ghimbir (ceai, în mâncare)", tcm: "încălzește Spleen-ul și Stomacul, usucă Umezeala", peat: "cresște temperatura corpului și circulația periferică" },
+    { n: "Scorțișoară mică doză", tcm: "încălzește Yang-ul de Rinichi", peat: "susține sensibilitatea la insulină" },
+    { n: "Ceai de mușețel / mentă", tcm: "mușețelul armonizează, mentă descongestionează Qi de Ficat", peat: "anti-estrogenic ușor, sedativ blând" },
+    { n: "Apă cu sare (pinch) + miere la efort", tcm: "echilibrează electroliții", peat: "susține aldosteronul scăzut la stres" },
+  ]},
+  { cat: "Legume & suport hepatic (detox estrogen)", items: [
+    { n: "Crucifere GĂTITE: broccoli, varză, Brussels, conopidă (150–250 g/zi)", tcm: "gătite sunt neutru-rece, curăță Căldura de Stomac și ajută Qi-ul de Ficat; CRUDe răcesc Spleen-ul la digestii slabe", peat: "indoli (I3C/DIM) accelerază metabolizarea estrogenului pe calea protectivă 2-OH; sulforafanul susține detoxul hepatic — de aceea NU sunt pe lista de evitat", note: "convergență rară: utile în ambele sisteme când sunt gătite" },
+    { n: "Morcovi gătiți / suc de morcov", tcm: "tonifică Qi-ul de Splenie", peat: "beta-caroten, ușor anti-estrogenic; Peat recomanda morcovul crud în protocolul anti-estrogenic" },
+    { n: "Sfeclă roșie fiartă (moderat)", tcm: "mișcă Sângele, hrănește Ficatul", peat: "nitrați → oxid nitric circulant, susține fluxul sanguin" },
+  ]},
+];
+
+const FOOD_AVOID = [
+  { cat: "PUFA — uleiuri și grăsimi instabile (perspectivă metabolică)", why: "Acizii grași polinesaturați (omega-6 din semințe) se depozitează în țesuturi, blochează conversia T4→T3 la tiroidă și se peroxidează în mitocondrii — un motor al îmbătrânirii după Peat.", items: [
+    { n: "Uleiuri de semințe: floarea-soarelui, rapiță, susan, porumb, șofrânel, struguri", tcm: "generează Umezeală și flegmă", peat: "PUFA omega-6 — blochează tiroida, puternic pro-inflamatorii; schimbarea single cea mai importantă" },
+    { n: "Margarină și „unturi vegetale“", tcm: "umede, greu de metabolizat", peat: "PUFA + grăsime industrială fără valoare metabolică" },
+    { n: "Maioneză, dressing-uri, sosuri din comerț (citește eticheta: dacă nu scrie „ulei de măsline“, e ulei de semințe)", tcm: "—", peat: "aproape toate pe bază de rapiță/floarea-soarelui" },
+    { n: "Alimente prăjite în ulei, mai ales ulei reutilizat (fast-food, cartofi prăjiți, shaorma)", tcm: "Căldură-toxică, produce puroi și acnee", peat: "peroxizi lipidici — PUFA oxidate la cald, direct pro-inflamatorii" },
+    { n: "Nuci, alune, semințe, unt de arahide în doze mari", tcm: "uleioase, produc flegmă și blochează digestia", peat: "omega-6 concentrate + fitoați care leagă minerale" },
+    { n: "Pește gras de apă rece zilnic (somon, macrou, sardine în ulei)", tcm: "în exces poate genera Umezeală", peat: "Peat: peștele gras = doză zilnică de PUFA; mai bine creveți/scoici și pește slab alb ocazional" },
+    { n: "Chipsuri, crackers, granola, snacks-uri de comerț", tcm: "uscate-cald + umede — amestec greu pentru Spleen", peat: "prăjite/coapte în uleiuri de semințe" },
+    { n: "Foietaje, patiserie industrială (grăsime vegetală hidrogenată)", tcm: "flegmă", peat: "grăsimi oxidate + PUFA" },
+  ]},
+  { cat: "Fitoestrogeni & anti-nutrienți hormonali", why: "„Estrogenul din plantă“ nu e inocent: soia și semințele de in conțin compuși cu activitate estrogenică reală, iar alcoolul blochează tocmai detoxul hepatic al estrogenului propriu.", items: [
+    { n: "Soia concentrată: lapte de soia, tofu industrial, proteine izolate, batoane „fit“", tcm: "rece, blochează Qi-ul digestiv", peat: "izoflavone (genisteină) — fitoestrogeni + goitrogeni care blochează peroxidaza tiroidiană" },
+    { n: "Semințe de in (flax) zilnice, mai ales în „smoothie-uri detox“", tcm: "răcoritoare-umede, uleioase", peat: "lignani = fitoestrogeni de intensitate mare; la estrogen dominant adaugă încărcătura" },
+    { n: "Lecitină de soia (E322) — emulgator în bomboane, ciocolată de comerț, panificație", tcm: "—", peat: "soia izolată, estrogenică" },
+    { n: "Bere și produte din hamei în doze mari", tcm: "Căldură-Umezeală, zgârie Ficatul", peat: "hameiul conține 8-prenilnaringenină — cel mai puternic fitoestrogen cunoscut" },
+    { n: "Alcool în exces, indiferent de formă", tcm: "Căldură-Umezeală la Ficat/Stomac", peat: "crește aromataza (transformă androgeni în estrogen) și încarcă ficatul exact când trebuie să elimine estrogenul" },
+    { n: "Leguminoase uscate zilnice în cantități mari (fasole, năut, linte)", tcm: "greu de digerat, produc gaze și Umezeală", peat: "lectine + fitoați; proteină incompletă, raport aminoacizi pro-inflamator" },
+    { n: "Tărâțe și „fibre obligatorii“ adăugate (in, psyllium, tărâțe de grâu)", tcm: "traumatizează intestinul subțire", peat: "fitați care leagă zincul și fierul — exact mineralele metabolice cheie" },
+  ]},
+  { cat: "Răceală & Umezeală — perspectiva TCM (la constituțiile reci/slabe)", why: "„Focul digestiv“ al Spleen-ului are nevoie de căldură. Alimentele care-l sting produc scaun moale, balonare, oboseală după masă.", items: [
+    { n: "Băuturi și alimente direct din frigider, cu gheață, înghețate", tcm: "stinge focul Spleen-ului — cauza clasică a scaunului moale", peat: "temperatura scăzută reduce rata metabolică" },
+    { n: "Salate mari crude zilnic (la constituții Slabe/reci)", tcm: "slăbesc Spleen-ul, produc scaun moale", peat: "goitrogeni crude + fibra leagă minerale" },
+    { n: "Castraveți, roșii, pepene verde în exces, mai ales seara", tcm: "puternic răcoritoare — Umezeală rece", peat: "legume crude = digestie incompletă" },
+    { n: "Fructe crude pe stomacul gol dimineața, la Spleen rece", tcm: "dulce-rece — dublă lovitură asupra focului digestiv", peat: "fructele în sine sunt bune — problema e momentul; după masă sau coapte sunt OK" },
+    { n: "Lapte/iaurt direct de la frigider, cu micul dejun", tcm: "laptele e rece ca natură; servit și el rece dublează", peat: "laptele cald e ok; rece blochează digestia" },
+    { n: "Exces de amăruri: cafea concentrată pe stomacul gol, ceaiuri „detox“ amare zilnic", tcm: "amărăciunea în exces usucă și răcește stomacul", peat: "cafeaua e OK cu lapte/zahăr; goală și în exces urcă cortizolul" },
+  ]},
+  { cat: "Umezeală-flegmă & toxice digestive", why: "Flegma în TCM = umori care nu mai curg: gaze, greutate, puf. Metabolic: încărcătură pe care ficatul și intestinul nu o procesează eficient.", items: [
+    { n: "Dulciuri industriale (sirop de porumb, glazuri, prăjituri cu margarină)", tcm: "dulce-umed — flegmă pură", peat: "fructoza industrială în doze mari, izolată de glucoză, încarcă ficatul; mierea și sucroza în cantități rezonabile sunt OK" },
+    { n: "Pâine cu drojdie în exces, mai ales cu margarină", tcm: "blochează Qi-ul, umflă", peat: "fără valoare metabolică" },
+    { n: "Brânzeturi mature, smântână, frișcă zilnic (la tipare cu flegmă)", tcm: "dulce-umed, generează mucus", peat: "excesul de grăsime lactată încetinește digestia; laptele simplu e alta poveste" },
+    { n: "Carne de porc grasă în exces la Umezeală", tcm: "dulce-umedă, produce flegmă", peat: "raport aminoacizi pro-inflamator dacă exagerezi" },
+    { n: "Varză murată / murături în exces (peste ~150 g/zi)", tcm: "acru excesiv astringe; doze mici ajută digestia", peat: "histamină + sare; doze mici (2–3 linguri) sunt în regulă" },
+    { n: "Îndulcitori „zero cal“ în exces", tcm: "înșală Spleen-ul", peat: "dezreglează sațietatea și microbiota" },
+    { n: "Post prelungit / săritul meselor", tcm: "golește Qi și Sângele", peat: "cortizol ↑, gluconeogeneză din mușchi" },
+  ]},
+];
+
+const FOOD_CONFLICTS = [
+  { topic: "Laptele", tcmSide: "TCM îl consideră umed și mucogenic la constituțiile cu Umezeală/flegmă", peatSide: "Peat îl vede ca aliment ideal (calciu, lactoză, proteină echilibrată)", fix: "Testare individuală: lapte CALD, în doze mici crescânde, în afară meselor cu Umezeală; renunță dacă produci mucus imediat" },
+  { topic: "Fructele și zahărul", tcmSide: "La Spleen rece, fructele crude slăbesc digestia și produc scaun moale", peatSide: "Peat: alimentul metabolic prin excelență", fix: "Fructe coapte, la temperatura camerei, cu ghimbir sau după masă; NU pe stomacul gol dimineața dacă ai scaun moale" },
+  { topic: "Ginsengul și stimulentele", tcmSide: "TCM îl folosește pentru tonifierea Qi-ului/Yang", peatSide: "Peat evită stimulentele puternice cronice la persoanele „wired & tired“", fix: "Folosește ginseeng doar dacă ești cu adevărat Qi/Yang-deficient și NU în tiparele cu căldură/agitație" },
+  { topic: "Postul", tcmSide: "Tradițiile orientale îl folosesc punctual, pentru Damp", peatSide: "Peat îl contrazice sistematic (cortizol, mușchi)", fix: "La constituții Qi/Yang-deficiente: mese regulate calde. La Damp+Yang puternic: post scurt, rar, doar cu ghimbir" },
+  { topic: "Fibra „obligatorie“", tcmSide: "Spleen-ul slăbit vrea mâncare ușoară, bine gătită", peatSide: "Peat: fibra brută irită și blochează mineralele", fix: "Convergență: legume BINE GĂTITE, cartofi, orez — nu salate uriașe" },
+  { topic: "Cafeaua", tcmSide: "goește Yin dacă e în exces; contraindicată la căldură de Ficat", peatSide: "Peat o recomandă cu zahăr/lapte pentru metabolism", fix: "Doza: 1–2/zi, doar dimineața, dacă nu ai căldură/Foc de Ficat dominant" },
+];
+
+/* --- suplimente --- */
+const SUPPLEMENTS = [
+  { n: "Gelatină / colagen hidrolizat", dose: "10–15 g/zi în suc cald sau bulion", when: "zilnic, orice anotimp", tcm: "hrănește Yin-ul și lichidele — cel mai sigur „tonic“", peat: "glicină: anti-inflamator, echilibrează triptofanul excesiv, protejează intestinul", cautions: "practic fără riscuri", showIf: () => true, conflict: "none" },
+  { n: "Vitamina E (tocopherols + tocotrienols)", dose: "100–200 UI amestec natural, cu masă", when: "zilnic dacă consumi PUFA sau ai semne estrogenice", tcm: "fără corespondent clasic; acționează ca antioxidant al Sângelui", peat: "anti-estrogenic, protejează membranele de peroxidarea PUFA, sprijină fertilitatea", cautions: "doze mari lungi → tensiune; alege amestec natural, nu sintetic", showIf: s => s.axes.estrogen < 80 || s.habits.includes("pufa") || s.p.bmi >= 25, conflict: "low" },
+  { n: "Vitamina A (retinol, din ficat sau ulei-cod)", dose: "5–10 000 UI/zi din alimentație; supliment doar 2–3×/săpt", when: "toamna/iarna, cu vitamina D", tcm: "hrănește Sângele de Ficat („ficatul deschide în ochi“)", peat: "antagonist natural al estrogenului; esențial pentru tiroidă (receptorul T3)", cautions: "NU mega-doze cronice; sarcina = maximum atenție", showIf: s => s.axes.thyroid < 85 || s.p.symptoms.includes("Căderea părului") || s.p.symptoms.includes("Piele uscată / mată"), conflict: "low" },
+  { n: "Vitamina D3 + K2 (MK-4/MK-7)", dose: "1000–4000 UI D3 / zi toamna-iarna; 100–200 mcg K2", when: "octombrie–aprilie (sau mereu dacă nu ieși la soare)", tcm: "Yang-ul soarelui concentrat — tonifică Yang de Rinichi", peat: "susține imunitatea, metabolismul calciului, dispoziția; Peat preferă doze moderate + soare", cautions: "monitorizează 25(OH)D la doze mari; nu fără K2 dacă iei calciu", showIf: () => true, conflict: "none" },
+  { n: "Magneziu (glicinat / citrat)", dose: "200–400 mg elemental, seara", when: "zilnic la stres, crampe, somn slab", tcm: "calmează Focul/Ficatul, relaxează tendoanele", peat: "cofactor pentru ATP și tiroidă; sedativ natural; anti-cortizol", cautions: "citrattul laxativ la doze mari; glicinatul = mai calmant", showIf: s => s.axes.cortisol < 80 || s.p.symptoms.includes("Somn neodihnitor") || s.p.symptoms.includes("Anxietate / agitație"), conflict: "none" },
+  { n: "Niacinamidă (B3)", dose: "50–100 mg/zi cu mâncare", when: "zilnic la metabolism lent", tcm: "fără echivalent clasic", peat: "reduce lipoliza (scade fluxul de acizi grași), protejează NAD+, sprijină digestia", cautions: "doze mari → flush/hepatic; NU niacina în doze mari fără aviz", showIf: s => s.axes.thyroid < 75 || s.habits.includes("pufa"), conflict: "low" },
+  { n: "Tiamină (B1, benfotiamină)", dose: "50–100 mg/zi", when: "cicluri de 4–8 săpt la oboseală + digestie slabă", tcm: "sprijină Spleen-ul (metabolismul glucozei)", peat: "cofactor central al metabolismului carbohidraților; deficit = „mecanism de foame“", cautions: "practic sigură", showIf: s => s.axes.bloodSugar < 80 || s.p.symptoms.includes("Foame puternică + slăbiciune dacă nu mănânc") || s.patterns.spleenQi >= 2, conflict: "none" },
+  { n: "Seleniu (selenometionină) + Zinc (picolinat)", dose: "100–200 mcg Se / 10–25 mg Zn", when: "cicluri de 2–3 luni la semne tiroidiene", tcm: "legat de „Ming Men“ (poarta focului) — focul metabolic", peat: "cofactori ai conversiei T4→T3 și ai imunității; zincul echilibrează estrogenul", cautions: "NU exagera (Zn > 50 mg lung → cupru jos); verifică analizele", showIf: s => s.axes.thyroid < 80 || s.p.symptoms.includes("Căderea părului") || s.p.symptoms.includes("Umflături ganglionare frecvente"), conflict: "low" },
+  { n: "Iod (soluție Lugol mică sau kelp)", dose: "doar la deficit confirmat; ~150–300 mcg/zi din alimentație", when: "cu vitamina A și seleniu, niciodată singur", tcm: "rezolvă „goiter-ul“ și flegma de la nivelul gâtului (folosit în formule pentru gulă)", peat: "esențial pentru tiroidă dar PERICULOS în exces; cere întotdeauna A + Se alături", cautions: "excesul agravează Hashimoto/hipertiroidia; nu începe fără analize (TSH, TPO)", showIf: s => s.axes.thyroid < 75, conflict: "HIGH — discută cu medicul" },
+  { n: "Ashwagandha (Withania somnifera)", dose: "300–600 mg extract rădăcină, seara", when: "cicluri de 6–8 săpt la stres/wired-tired", tcm: "nu e clasic TCM (e Ayurvedică); acțiune asemănătoare tonifierii Yang de Rinichi + calmării Shen", peat: "reduce cortizolul; Peat ar cere prudență la doze mari lungi (GABA-ergică)", cautions: "contraindicată în hipertiroidie; poate agita unele persoane — începe cu doză mică", showIf: s => s.axes.cortisol < 75, conflict: "low" },
+  { n: "Ginseng roșu coreean (Panax)", dose: "200–400 mg extract, dimineața", when: "DOAR la Yang/Qi-deficiență clară, fără căldură", tcm: "cel mai puternic tonic de Qi și Yang de Rinichi/Splenă", peat: "Peat e rezervat: stimulant cronica poate „împrumuta“ din rezerva metabolică", cautions: "NU la hipertensiune, agitație, Foc de Ficat, insomnie; cicluri de 3 săpt + pauză", showIf: s => (s.patterns.kidneyYang >= 2 || s.patterns.spleenQi >= 3) && s.patterns.liverFire < 2 && s.p.energy !== "wired", conflict: "MEDIUM — contraindicată în căldură" },
+  { n: "Rehmannia preparată (Shu Di Huang) / formule clasice", dose: "doar în formula unui practician TCM", when: "Yin de Rinichi golit", tcm: "regele tonicelor de Yin și Sânge", peat: "Peat ar spune: bogată în zahăr — metabolic neutră ca aliment", cautions: "produce Umezeală/balonare la Spleen slab — în formulele clasice se combină cu ghimbir și lemnul-care-calmă (Mu Xiang)", showIf: s => s.patterns.kidneyYin >= 2, conflict: "MEDIUM — cere formulă clasică, nu singură" },
+  { n: "Reishi (Ganoderma)", dose: "1–2 g extract/zi", when: "la anxietate + imunitate slabă", tcm: "calmează Shen-ul (spiritul), susține Qi de Plămân și Inimă", peat: "Peat e precaut cu ciupercile (estrogenic/serotonergic în exces), dar doze moderate par ok", cautions: "poate produce Umezeală la Spleen slăbit; lasă sângerări mai abundente la unele persoane", showIf: s => s.p.symptoms.includes("Anxietate / agitație") && s.patterns.damp < 4, conflict: "MEDIUM" },
+  { n: "Gheara-mâței (Uncaria tomentosa)", dose: "250–500 mg/zi", when: "dureri articulare / semne de stază", tcm: "în farmacopeea chineză (Gou Teng) „ascunde vântul Ficatului“", peat: "anti-serotonergic, anti-inflamator al țesuturilor", cautions: "prudență la medicație pentru tensiune/sângerare", showIf: s => s.axes.inflammation < 80 || s.patterns.bloodStasis >= 3, conflict: "low" },
+  { n: "Vitamina C din FRUCTE (nu megadoze ascorbate)", dose: "2–3 porții fructe/zi", when: "zilnic", tcm: "fructele hrănesc lichidele și Qi-ul", peat: "Peat: vitamina C reală vine din alimente; megadozele de ascorbat pot oxida", cautions: "nu confunda „vitamina C“ cu 1g+ ascorbic acid pe stomacul gol la glicemie labilă", showIf: () => true, conflict: "none" },
+  { n: "Extract de crucifere (DIM / I-3-C) — ideal din broccoli/varză GĂTITĂ", dose: "150–250 g crucifere gătite/zi; DIM 100–200 mg doar la nevoie", when: "la semne de estrogen dominant (edeme, SPM, fibroame)", tcm: "cruciferele gătite sunt neutru-rece, curăță Căldura de Stomac și ajută Ficatul; doar cele MURATE în exces pot astringe", peat: "indolii cresc calea 2-hidroxilare a estrogenului (cea protectivă) — cruciferele gătite sunt recomandate, nu evitate", cautions: "nu în sarcină fără aviz; DIM în doze mari poate scădea exagerat formele de estrogen", showIf: s => s.axes.estrogen < 80 || s.p.symptoms.includes("Sâni sensibili înainte de ciclu (SPM)") || s.p.symptoms.includes("Chisturi mamare / fibroame uterine diagnosticate"), conflict: "low" },
+  { n: "Progesteron bioidentic (USP, cremă)", dose: "DOAR pe prescripție, după testare (ser/salivă, ideal ziua 21 de ciclu)", when: "estrogen dominant confirmat medical; peri/menopauză cu simptome", tcm: "fără corespondent clasic; funcțional seamănă cu hrănirea Yin-ului și a Sângelui (calmează, protejează)", peat: "Peat a dedicat progesteronului lucrări întregi: îl consideră protectorul central împotriva estrogenului neopus — anti-proliferativ, anti-inflamator, sedativ, susținător tiroidian", cautions: "auto-administrarea fără monitorizare poate dezechilibra întregul profil hormonal; cere endocrinolog/ginecolog", showIf: s => s.axes.estrogen < 70 && (["peri", "meno", "post"].includes(s.p.menopause) || s.p.symptoms.includes("Sâni sensibili înainte de ciclu (SPM)")), conflict: "HIGH — doar cu medicul" },
+  { n: "Probiotice fermentate tradiționale (kefir, kimchi gătit)", dose: "porții mici zilnice", when: "la gut slab, dar NU ca salată crudă în exces", tcm: "susțin Spleen-ul și transformă Damp-ul", peat: "microbiota sănătoasă fără prea multă fibru brută", cautions: "la histamină sensibilă, începe cu cantități mici", showIf: s => s.axes.gut < 80, conflict: "low" },
+];
+
+/* --- anotimpuri TCM (5 elemente) --- */
+const SEASONS = [
+  { id: "spring", name: "Primăvara", element: "Lemn (Mu)", organ: "Ficat & Vezică biliară", emotion: "Iritabilitate (revărsare pozitivă = bunătate)", months: [2, 3, 4], color: "verde",
+    tcmFavor: ["Verdeturi tinere (sfeacă, mentă mică doze)", "Alimente care „mișcă Qi“: tarhon, rozmarin mic", "Foarte puțin ulei", "Gust ușor dulce-prelungit ca să relaxeze Ficatul"],
+    tcmReduce: ["Alimente acre în exces", "Alcool", "Mâncăruri foarte grase/prăjite", "Supra-atingerea de stimulente"],
+    practices: ["Plimbări în natură, întindere/mobilitate", "Qigong „de Ficat“ — lateroflexii", "Mergi la culcare puțin mai devreme, trezește-te devreme", "Nu te enerva; scrie jurnal de dispoziție"],
+    peat: "Vitamină D încă jos — susține cu A/D și fructe; fii atent la histamină la „curățirile“ de primăvară agresive",
+    note: "Sezonul clasice al „curățelor de Ficat“ — dar la Spleen/Qi-deficiență NU face curățare radicală, doar mai multe verdeturi gătite" },
+  { id: "summer", name: "Vara", element: "Foc (Huo)", organ: "Inimă & Intestin subțire", emotion: "Bucurie (sau agitație dacă e în exces)", months: [4, 5, 6], color: "roșu",
+    tcmFavor: ["Roșii, ardei, pepene roșu", "Băuturi la temperatura camerei, NICI înghețate", "Gust amar mic (sfeclă frunze) în doze mici", "Mese ușoare, mai frecvente"],
+    tcmReduce: ["Grătar excesiv + alcool (creează Căldură umedă)", "Băuturi cu gheață în exces („sting“ focul digestiv)", "Mâncatul în agitație"],
+    practices: ["Siestă scurtă (5–20 min) după prânz", "Activitate fizică dimineața/devărul", "Râde, socializează — hrănește Inima", "Apă pe încheieturi/puls la suprasolicitare"],
+    peat: "Fructele de sezon sunt ideale metabolic; bagă calciu (lapte/îngheț de lapte casnic fără ulei) și sare; lumină abundentă",
+    note: "Nu confunda „răcorirea“ cu înghețata cu sirop — TCM și Peat sunt de acord: băuturile cu gheață în exces blochează Spleen-ul și digestia" },
+  { id: "earth", name: "Întâi de toamnă (sezonul Pământului)", element: "Pământ (Tu)", organ: "Splină & Stomac", emotion: "Reflecție / gri (prea mult = obsesie)", months: [7, 8], color: "galben",
+    tcmFavor: ["Cartofi dulci, dovleac, morcovi gătiți", "Ghimbir, cardamom, orez", "Mese REGULATE — niciodată în fața ecranelor", "Fierbere/sote ușor"],
+    tcmReduce: ["Lactate excesive dacă ai Umezeală", "Zahăr rafinat mare", "Fructe de sezon în exces pe stomacul gol"],
+    practices: ["Mestecă lent, fără ecran", "Plimbare 10 min după fiecare masă", "Gătitul ca meditație"],
+    peat: "Sezonul tranzitiei glicemice — nu lăsa mesele să „sare“; micul dejun cu proteine + carbohidrați calzi",
+    note: "Acesta e sezonul-cheie pentru constituția ta de Splină dacă ai scor mare aici — 20 zile de mese perfecte regulate fac mai mult decât orice tonic" },
+  { id: "autumn", name: "Toamna", element: "Metal (Jin)", organ: "Plămân & Colon", emotion: "Melancolie (echilibru = detașare sănătoasă)", months: [9, 10], color: "alb",
+    tcmFavor: ["Pere coapte, mere coapte, migdale", "Orez, conopidă gătită, hrisca", "Miere mică doze (usucă flegma, hrănește Plămânul)", "Supe clare cu ghimbir"],
+    tcmReduce: ["Alimente foarte uscate/prăjite care usucă lichidele", "Condimente extrem de picante în exces (deschid porii, pierzi Qi)", "Lactate goale la Plămân slab + flegmă"],
+    practices: ["Respirații lungi, profunde, dimineața (4-7-8)", "Îmbracă gâtul la vânt", "Plimbări la soarele de toamnă", "Structură și ordine în program — hrănește Metalul"],
+    peat: "Scade lumina: vitamina D3+K2 zilnic, mai multe fructe (vitamina C), păstrează temperatura corpului; începe laptele cald cu miere seara",
+    note: "Plămânul „deschide în piele“ — pielea uscată de toamnă = semn că lichidele scad; gelatină + pere coapte + miere" },
+  { id: "winter", name: "Iarna", element: "Apă (Shui)", organ: "Rinichi & Vezică", emotion: "Frică (suplimentată = curaj senin)", months: [11, 0, 1], color: "negru",
+    tcmFavor: ["Supă de oase cu gătit lung (8+ ore)", "Fasole neagră mică doze, năut gătit bine", "Sare mică doze (intră în Rinichi)", "Alimente calde, gătite lent, ghimbir", "Scorțișoară mică doze"],
+    tcmReduce: ["Alimente crude/rece (maxim daune la Yang de Rinichi)", "Diuretice puternice (cafea în exces)", "Salate de iarnă"],
+    practices: ["Somn timpuriu, trezire târzie relativ", "Tai chi/qigong lent în interior", "Picioare calde, lombar acoperit", "Nu „arde“ rezerva cu sport epuizant"],
+    peat: "TDEE crește pe frig — NU subalimenta; lapte cald + miere + sare pe alimente; lumină artificială puternică dimineața",
+    note: "Iarna e sezonul în care ambele sisteme agreează: bulion de oase, gelatină, lapte cald — convergență aproape perfectă" },
+];
+
+function currentSeason(d = new Date()) {
+  const m = d.getMonth();
+  return SEASONS.find(s => s.months.includes(m)) || SEASONS[3];
+}
+
+/* ============================== ANALIZĂ ============================== */
+
+function analyze(p) {
+  const bmi = p.weight / Math.pow(p.height / 100, 2);
+  const bmiLabel = bmi < 18.5 ? "subponderal" : bmi < 25 ? "normal" : bmi < 30 ? "supraponderal" : "obesitate";
+
+  /* --- constituții TCM --- */
+  const pt = { spleenQi: 0, kidneyYang: 0, kidneyYin: 0, liverQi: 0, liverFire: 0, heartBlood: 0, heartYin: 0, lungQi: 0, damp: 0, bloodStasis: 0, stomachYin: 0 };
+  const A = (k, v) => { pt[k] += v; };
+  // semne directe
+  if (p.temp === "cold") { A("kidneyYang", 2); A("spleenQi", 1); }
+  if (p.temp === "hot") { A("liverFire", 2); A("kidneyYin", 1); }
+  if (p.temp === "mixed") { A("kidneyYin", 2); A("liverFire", 1); } // foc flotant
+  // limbă corp
+  if (p.tongueBody === "pale") { A("spleenQi", 2); A("heartBlood", 1); }
+  if (p.tongueBody === "red") { A("kidneyYin", 2); A("liverFire", 1); A("heartYin", 1); }
+  if (p.tongueBody === "crimson") A("bloodStasis", 3);
+  if (p.tongueBody === "swollen") { A("damp", 2); A("spleenQi", 2); }
+  // limbă depozit
+  if (p.tongueCoat === "thick") { A("damp", 3); A("spleenQi", 1); }
+  if (p.tongueCoat === "yellow") { A("liverFire", 2); A("damp", 1); }
+  if (p.tongueCoat === "dry") A("stomachYin", 2);
+  if (p.tongueCoat === "none") { A("kidneyYin", 2); A("stomachYin", 1); }
+  // sete
+  if (p.thirst === "littleWarm") A("spleenQi", 1);
+  if (p.thirst === "muchCold") { A("kidneyYin", 1); A("liverFire", 1); }
+  if (p.thirst === "night") { A("kidneyYin", 2); A("kidneyYang", 1); }
+  // scaun
+  if (p.stool === "loose") { A("spleenQi", 2); A("damp", 1); }
+  if (p.stool === "dry") { A("stomachYin", 2); A("bloodStasis", 1); }
+  if (p.stool === "urgent") { A("liverFire", 2); A("damp", 1); }
+  if (p.stool === "thin") { A("spleenQi", 2); A("lungQi", 1); }
+  if (p.stool === "greasy") { A("damp", 2); A("spleenQi", 1); }
+  // frecvența tranzitului
+  if (p.stoolFreq === "every2") { A("liverQi", 1); A("spleenQi", 1); }
+  if (p.stoolFreq === "rare") { A("bloodStasis", 1); A("stomachYin", 1); A("liverQi", 1); }
+  if (p.stoolFreq === "alternating") { A("liverQi", 2); }
+  // transpir
+  if (p.sweat === "little") A("lungQi", 1);
+  if (p.sweat === "profuse") A("lungQi", 2);
+  if (p.sweat === "nightOnly") { A("kidneyYin", 2); }
+  // somn
+  if (p.sleep === "fallHard") { A("liverQi", 1); A("heartBlood", 1); }
+  if (p.sleep === "wake13") { A("liverQi", 3); A("bloodStasis", 1); }
+  if (p.sleep === "wake35") { A("lungQi", 2); }
+  // emoție
+  if (p.emotion === "flat") { A("spleenQi", 1); A("heartBlood", 1); }
+  if (p.emotion === "irritable") { A("liverQi", 2); A("liverFire", 1); }
+  if (p.emotion === "anxious") { A("heartYin", 2); A("heartBlood", 1); }
+  if (p.emotion === "apathic") A("kidneyYang", 2);
+  // durere
+  if (p.pain === "dullFixed") { A("bloodStasis", 2); A("kidneyYang", 1); }
+  if (p.pain === "wandering") A("liverQi", 2);
+  if (p.pain === "burning") A("liverFire", 2);
+  // digestie crud
+  if (p.digestionRaw === "bad") { A("spleenQi", 2); }
+  if (p.digestionRaw === "craving") { A("damp", 1); A("spleenQi", 1); }
+  // energie
+  if (p.energy === "low") { A("spleenQi", 2); A("kidneyYang", 2); }
+  if (p.energy === "wired") { A("kidneyYin", 2); A("heartYin", 1); }
+  // examen fizic auto
+  if (p.sublingual === "dark") A("bloodStasis", 2);
+  if (p.sublingual === "varicose") A("bloodStasis", 4);
+  for (const tId of (p.tender || [])) { const it = EXAM.tender.find(x => x.id === tId); if (it) for (const [k, v] of Object.entries(it.pt)) A(k, v); }
+  const fd = EXAM.fatDist.find(x => x.id === p.fatDist); if (fd) for (const [k, v] of Object.entries(fd.pt)) A(k, v);
+  const cx = EXAM.complexion.find(x => x.id === p.complexion); if (cx) for (const [k, v] of Object.entries(cx.pt)) A(k, v);
+  for (const eId of (p.eyesNails || [])) { const it = EXAM.eyesNails.find(x => x.id === eId); if (it) for (const [k, v] of Object.entries(it.pt)) A(k, v); }
+  for (const zId of (p.skinZones || [])) { const it = EXAM.skinZones.find(x => x.id === zId); if (it) for (const [k, v] of Object.entries(it.pt)) A(k, v); }
+  for (const mId of (p.skinMarks || [])) { const it = EXAM.skinMarks.find(x => x.id === mId); if (it) for (const [k, v] of Object.entries(it.pt)) A(k, v); }
+  if (p.stairs === "hard") { A("spleenQi", 1); A("lungQi", 1); }
+  if (p.stairs === "very") { A("kidneyYang", 1); A("lungQi", 2); A("heartBlood", 1); }
+  // simptome
+  const map = [
+    ["Oboseală persistentă", { spleenQi: 1, kidneyYang: 1 }],
+    ["Mâini/picioare reci", { kidneyYang: 1 }],
+    ["Senzație de căldură după-amiaza/seara", { kidneyYin: 2 }],
+    ["Transpirații nocturne", { kidneyYin: 2 }],
+    ["Fălcii roșii", { kidneyYin: 1 }],
+    ["Frig interior (abdomen/spate rece)", { kidneyYang: 2, spleenQi: 1 }],
+    ["Balonare / digestie lentă", { spleenQi: 1, damp: 1 }],
+    ["Tranzit moale / nestatornic", { spleenQi: 1 }],
+    ["Constipație uscată", { stomachYin: 1 }],
+    ["Gaze după leguminoase", { spleenQi: 1 }],
+    ["Disconfort după alimente crude", { spleenQi: 2 }],
+    ["Poftă de dulce", { spleenQi: 1 }],
+    ["Foame puternică + slăbiciune dacă nu mănânc", { stomachYin: 1, bloodSugar: 0 }],
+    ["Somn neodihnitor", { heartBlood: 1 }],
+    ["Trezește între 1–3 noaptea", { liverQi: 2 }],
+    ["Trezește între 3–5 dimineața", { lungQi: 1 }],
+    ["Anxietate / agitație", { heartYin: 1 }],
+    ["Depresie / dispoziție joasă", { liverQi: 1, heartBlood: 1 }],
+    ["Iritabilitate / furie ușoară", { liverQi: 1, liverFire: 1 }],
+    ["Dificultăți de concentrare", { heartBlood: 1, damp: 1 }],
+    ["Somnolență frecventă / pesantă", { damp: 1 }],
+    ["Cicl menstrual dureros / cheaguri", { bloodStasis: 2, liverQi: 1 }],
+    ["Chisturi mamare / fibroame uterine diagnosticate", { damp: 1, bloodStasis: 1, liverQi: 1 }],
+    ["Sâni sensibili înainte de ciclu (SPM)", { liverQi: 2 }],
+    ["Retenție de apă / edeme", { damp: 2, spleenQi: 1 }],
+    ["Libido scăzut", { kidneyYang: 2 }],
+    ["Căderea părului", { kidneyYin: 1, kidneyYang: 1 }],
+    ["Piele uscată / mată", { kidneyYin: 1, bloodStasis: 1 }],
+    ["Umflături ganglionare frecvente", { damp: 1, lungQi: 1 }],
+    ["Dureri articulare / rigiditate matinală", { bloodStasis: 1, damp: 1 }],
+    ["Crăpături la colțuri / buze uscate", { stomachYin: 1 }],
+    ["Amețeală la ridicare", { heartBlood: 1, bloodSugar: 0 }],
+    ["Palpitații", { heartBlood: 1, heartYin: 1 }],
+    ["Tremur/agitație dacă trec multe ore fără mâncare", { bloodSugar: 0 }],
+    ["Somnolență puternică după masă", { spleenQi: 2, damp: 1 }],
+    ["Creștere în greutate ușoară", { damp: 1 }],
+    ["Senzație de „ceață“ mentală", { damp: 2 }],
+  ];
+  for (const s of p.symptoms) { const hit = map.find(m => m[0] === s); if (hit) for (const [k, v] of Object.entries(hit[1])) { if (!(k in pt)) continue; A(k, v); } }
+  if (p.appearance === "overweight" || p.appearance === "obese") { A("damp", 2); }
+  if (p.appearance === "thin") { A("spleenQi", 1); A("stomachYin", 1); }
+
+  const maxPt = Math.max(...Object.values(pt), 1);
+  const ptNorm = Object.fromEntries(Object.entries(pt).map(([k, v]) => [k, Math.round(v / maxPt * 100)]));
+  const ranked = Object.entries(pt).sort((a, b) => b[1] - a[1]);
+  const dominant = ranked[0][0];
+  const secondary = ranked[1][0];
+
+  /* --- axe Peat --- */
+  const axBase = { thyroid: 100, cortisol: 100, estrogen: 100, bloodSugar: 100, inflammation: 100, gut: 100 };
+  const axes = { ...axBase };
+  const axisHits = {};
+  for (const h of PEAT_HABITS) {
+    if (!p.habits.includes(h.id)) continue;
+    for (const [k, v] of Object.entries(h.axis)) { axes[k] -= v * 8; (axisHits[k] = axisHits[k] || []).push(h.label); }
+  }
+  const sMap = [
+    ["Mâini/picioare reci", { thyroid: 6 }], ["Oboseală persistentă", { thyroid: 5 }], ["Libido scăzut", { thyroid: 5 }],
+    ["Căderea părului", { thyroid: 4 }], ["Creștere în greutate ușoară", { thyroid: 4 }],
+    ["Retenție de apă / edeme", { estrogen: 8 }], ["Sâni sensibili înainte de ciclu (SPM)", { estrogen: 10 }],
+    ["Cicl menstrual dureros / cheaguri", { estrogen: 5 }], ["Umflături ganglionare frecvente", { estrogen: 4 }],
+    ["Trezește între 1–3 noaptea", { cortisol: 5 }], ["Anxietate / agitație", { cortisol: 4 }],
+    ["Tremur/agitație dacă trec multe ore fără mâncare", { bloodSugar: 10 }],
+    ["Foame puternică + slăbiciune dacă nu mănânc", { bloodSugar: 8 }],
+    ["Somnolență puternică după masă", { bloodSugar: 5 }],
+    ["Amețeală la ridicare", { bloodSugar: 4 }],
+    ["Dureri articulare / rigiditate matinală", { inflammation: 8 }],
+    ["Piele uscată / mată", { inflammation: 3 }],
+    ["Balonare / digestie lentă", { gut: 6 }], ["Tranzit moale / nestatornic", { gut: 5 }],
+    ["Gaze după leguminoase", { gut: 5 }], ["Disconfort după alimente crude", { gut: 3 }],
+    ["Constipație uscată", { gut: 3 }],
+  ];
+  for (const s of p.symptoms) { const hit = sMap.find(m => m[0] === s); if (hit) for (const [k, v] of Object.entries(hit[1])) { axes[k] -= v; (axisHits[k] = axisHits[k] || []).push(s); } }
+  /* tiroidă — evaluare aprofundată (Peat: TSH > 2 = semnal de alertă) */
+  const thHits = [];
+  if (p.tsh === "hypo") { axes.thyroid -= 45; thHits.push("hipotiroidism diagnosticat"); }
+  if (p.tsh === "hashi") { axes.thyroid -= 50; thHits.push("Hashimoto — tiroidită autoimună"); }
+  if (p.tsh === "high") { axes.thyroid -= 22; thHits.push("TSH 2–4 — Peat consideră orice peste 2 problematic"); }
+  if (p.tsh === "vhigh") { axes.thyroid -= 35; thHits.push("TSH peste 4 — net supranormal"); }
+  const mt = parseFloat(p.morningTemp);
+  if (!isNaN(mt) && mt >= 33 && mt < 36.3) { axes.thyroid -= Math.round((36.3 - mt) * 12); thHits.push(`temperatură axilară matinală ${mt}°C — sub 36,3°C sugerează tiroidă joasă (Peat: optim > 36,5°C)`); }
+  const rp = parseFloat(p.restingPulse);
+  if (!isNaN(rp) && rp > 0) {
+    if (rp < 58) { axes.thyroid -= 12; thHits.push(`puls de repaus ${rp} bpm — bradicardie metabolică`); }
+    if (rp > 85) { axes.cortisol -= 8; thHits.push(`puls de repaus ${rp} bpm — sistem simpatic ridicat`); }
+  }
+  if (p.stairs === "hard") { axes.thyroid -= 10; thHits.push("toleranță scăzută la efort (scări grele la 1–2 etaje)"); }
+  if (p.stairs === "very") { axes.thyroid -= 16; thHits.push("intoleranță marcată la efort"); }
+  if ((p.eyesNails || []).includes("eyebrows")) { axes.thyroid -= 12; thHits.push("sprâncene rare în treimea externă — semnul Hertoghe de hipotiroidism"); }
+  if ((p.eyesNails || []).includes("coldHands")) { axes.thyroid -= 6; thHits.push("mâini albastre la frig — circulație periferică slabă"); }
+  if (p.symptoms.includes("Constipație uscată")) { axes.thyroid -= 6; thHits.push("constipație — tranzitul încetinește la tiroidă joasă"); }
+  for (const h of thHits) (axisHits.thyroid = axisHits.thyroid || []).push(h);
+  /* estrogen — status hormonal feminin */
+  if (p.sex === "f") {
+    if (p.menopause === "meno" || p.menopause === "post") { axes.estrogen -= 28; (axisHits.estrogen = axisHits.estrogen || []).push("menopauză: progesteronul cade spre zero, estrogenul rămâne relativ dominant („estrogen neopus“)"); }
+    if (p.menopause === "peri") { axes.estrogen -= 15; (axisHits.estrogen = axisHits.estrogen || []).push("peri-menopauză: anovulație frecventă → fără corp galben → fără progesteron"); }
+    if (p.menopause === "irregular") { axes.estrogen -= 8; (axisHits.estrogen = axisHits.estrogen || []).push("ciclu neregulat — posibil anovulatoriu"); }
+  }
+  if (p.symptoms.includes("Chisturi mamare / fibroame uterine diagnosticate")) { axes.estrogen -= 15; (axisHits.estrogen = axisHits.estrogen || []).push("chisturi/fibroame — proliferare tipic estrogenică"); }
+  /* tranzit rar — intestin + tiroidă (Peat: tranzitul lent acompaniază metabolismul lent) */
+  if (p.stoolFreq === "every2") { axes.gut -= 5; axes.thyroid -= 5; (axisHits.gut = axisHits.gut || []).push("scaun la 2–3 zile — tranzit lent"); }
+  if (p.stoolFreq === "rare") { axes.gut -= 10; axes.thyroid -= 8; (axisHits.gut = axisHits.gut || []).push("scaun mai rar de o dată la 3 zile — constipație marcată"); (axisHits.thyroid = axisHits.thyroid || []).push("constipație marcată — tranzitul încetinește la tiroidă joasă"); }
+  if (p.stoolFreq === "alternating") { axes.gut -= 6; (axisHits.gut = axisHits.gut || []).push("tranzit alternant — tipar de stagnare"); }
+  if (p.stool === "greasy") { axes.gut -= 5; (axisHits.gut = axisHits.gut || []).push("scaun gruros/mirositor — absorbție slabă, dezechilibru de flotă"); }
+  /* semne cutanate pe zone & mărci — efect pe axe */
+  for (const zId of (p.skinZones || [])) { const it = EXAM.skinZones.find(x => x.id === zId); if (it) for (const [k, v] of Object.entries(it.ax)) { axes[k] -= v; if (it.hit) (axisHits[k] = axisHits[k] || []).push(it.hit); } }
+  for (const mId of (p.skinMarks || [])) { const it = EXAM.skinMarks.find(x => x.id === mId); if (it) for (const [k, v] of Object.entries(it.ax)) { axes[k] -= v; if (it.hit) (axisHits[k] = axisHits[k] || []).push(it.hit); } }
+  for (const k of Object.keys(axes)) axes[k] = Math.max(5, Math.min(100, Math.round(axes[k])));
+  const metabolicScore = Math.round((axes.thyroid * 0.3 + axes.cortisol * 0.2 + axes.bloodSugar * 0.2 + axes.estrogen * 0.1 + axes.inflammation * 0.1 + axes.gut * 0.1));
+
+  const bmr = Math.round(10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === "f" ? -161 : 5));
+  const actMult = { sedentary: 1.2, light: 1.4, active: 1.6, veryActive: 1.8 }[p.activity] || 1.3;
+  const tdee = Math.round(bmr * actMult);
+  const proteinTarget = Math.round(p.weight * (bmi >= 25 ? 1.6 : 1.2));
+  const carbTarget = Math.round((tdee * 0.55) / 4);
+  const fatTarget = Math.round((tdee * 0.25) / 9);
+
+  return { bmi, bmiLabel, patterns: pt, ptNorm, dominant, secondary, axes, axisHits, metabolicScore, bmr, tdee, proteinTarget, carbTarget, fatTarget, season: currentSeason() };
+}
+
+/* ============================== UI ============================== */
+
+function Chip({ on, t, label, onClick }) {
+  return (
+    <button onClick={onClick}
+      className={`px-3 py-2 rounded-xl text-sm transition-all ${on ? t.chipOn + " font-semibold shadow" : t.chip + " hover:brightness-95"}`}>
+      {label}
+    </button>
+  );
+}
+
+function Field({ t, label, children }) {
+  return (
+    <div className="mb-5">
+      <label className={`block mb-2 text-sm font-medium`}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function RadioGroup({ t, options, value, onChange }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {options.map(o => (
+        <button key={o.id} onClick={() => onChange(o.id)}
+          className={`text-left px-4 py-3 rounded-xl border text-sm transition-all ${value === o.id ? t.chipOn + " border-transparent font-semibold" : t.input + " hover:brightness-95"}`}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Card({ t, children, className }) {
+  return <div className={`${t.card} border ${t.border} rounded-2xl p-5 sm:p-6 ${className || ""}`}>{children}</div>;
+}
+
+const STEPS = ["Date", "Simptome", "Semne TCM", "Examen", "Obiceiuri", "Raport"];
+const RESULT_TABS = [
+  { id: "general", label: "📊 General" },
+  { id: "tcm", label: "☯️ TCM profund" },
+  { id: "peat", label: "🔥 Metabolic" },
+  { id: "mecanisme", label: "🧠 Mecanisme" },
+  { id: "alimente", label: "🥣 Alimente" },
+  { id: "supl", label: "💊 Suplimente" },
+  { id: "presopunctura", label: "👐 Terapie" },
+  { id: "sezon", label: "🍂 Anotimp" },
+  { id: "plan", label: "📋 Plan" },
+];
+
+function App() {
+  const [theme, setTheme] = useState("light");
+  const t = THEMES[theme];
+  const [step, setStep] = useState(0);
+  const [tab, setTab] = useState("general");
+  const [p, setP] = useState({
+    name: "", sex: "m", age: 35, height: 175, weight: 75, activity: "light", appearance: "normal",
+    symptoms: [],
+    temp: "neutral", tongueBody: "normal", tongueCoat: "thin", thirst: "normal", stool: "normal",
+    sweat: "normal", sleep: "ok", emotion: "flat", pain: "none", digestionRaw: "ok", energy: "ok",
+    sublingual: "normal", tender: [], fatDist: "none", complexion: "normal", eyesNails: [], skinZones: [], skinMarks: [], stoolFreq: "daily",
+    stairs: "easy", morningTemp: "", restingPulse: "", tsh: "unknown", menopause: "na",
+    habits: [],
+  });
+  const [saved, setSaved] = useState(store.get("metabalance-profiles") || []);
+  const [msg, setMsg] = useState("");
+
+  const upd = (k, v) => setP(prev => ({ ...prev, [k]: v }));
+  const toggleSymptom = s => setP(prev => ({ ...prev, symptoms: prev.symptoms.includes(s) ? prev.symptoms.filter(x => x !== s) : [...prev.symptoms, s] }));
+  const toggleHabit = h => setP(prev => ({ ...prev, habits: prev.habits.includes(h) ? prev.habits.filter(x => x !== h) : [...prev.habits, h] }));
+  const toggleExam = (k, id) => setP(prev => ({ ...prev, [k]: prev[k].includes(id) ? prev[k].filter(x => x !== id) : [...prev[k], id] }));
+
+  const result = useMemo(() => (step === 5 ? analyze(p) : null), [step, p]);
+
+  const saveProfile = () => {
+    const entry = { name: p.name || "Profil fără nume", date: new Date().toLocaleDateString("ro-RO"), data: p };
+    const next = [...saved.filter(x => x.name !== entry.name), entry];
+    setSaved(next); store.set("metabalance-profiles", next);
+    setMsg("Profil salvat pe acest dispozitiv ✓");
+    setTimeout(() => setMsg(""), 2500);
+  };
+  const loadProfile = (e) => { setP(e.data); setStep(4); setTab("general"); };
+
+  const canNext = () => step === 0 ? (p.age > 10 && p.height > 100 && p.weight > 25) : true;
+
+  const radarTcm = result ? Object.entries(result.ptNorm).map(([k, v]) => ({ n: shortName(k), v })) : [];
+  const peatBar = result ? Object.entries(result.axes).map(([k, v]) => ({ n: PEAT_AXES[k].name.split(" (")[0], v })) : [];
+
+  const seasonIdx = SEASONS.findIndex(s => s.id === (result?.season?.id));
+
+  return (
+    <div className={`min-h-screen ${t.page} ${t.text} transition-colors`}>
+      <header className={`sticky top-0 z-10 ${t.card} border-b ${t.border} px-4 py-3 flex items-center justify-between`}>
+        <div>
+          <h1 className="font-bold text-lg leading-tight">☯️🔥 MetaBalance <span className={`text-xs font-normal ${t.sub}`}>PRO</span></h1>
+          <p className={`text-xs ${t.sub}`}>TCM profund × Ray Peat pro-metabolism</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select onChange={e => { const s = saved.find(x => x.name === e.target.value); if (s) loadProfile(s); }}
+            className={`hidden sm:block text-xs px-2 py-1.5 rounded-lg border ${t.input}`}>
+            <option value="">Profiluri salvate…</option>
+            {saved.map(s => <option key={s.name} value={s.name}>{s.name} ({s.date})</option>)}
+          </select>
+          <button onClick={() => setTheme(theme === "light" ? "dark" : "light")} className={`px-3 py-1.5 rounded-lg text-sm border ${t.input}`}>
+            {theme === "light" ? "🌙" : "☀️"}
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-2xl mx-auto px-4 py-6 pb-24">
+        <div className="flex gap-1.5 mb-8">
+          {STEPS.map((s, i) => (
+            <div key={s} className="flex-1">
+              <div className={`h-1.5 rounded-full ${i <= step ? t.accent : t.chip}`}></div>
+              <p className={`text-[10px] mt-1 ${i <= step ? t.accentText : t.sub}`}>{s}</p>
+            </div>
+          ))}
+        </div>
+
+        {msg && <div className={`mb-4 px-4 py-2 rounded-xl text-sm ${t.chipOn} font-medium`}>{msg}</div>}
+
+        {/* STEP 0 */}
+        {step === 0 && (
+          <Card t={t}>
+            <h2 className="font-semibold mb-4">Datele tale de bază</h2>
+            <Field t={t} label="Nume (pentru salvarea profilului)">
+              <input value={p.name} onChange={e => upd("name", e.target.value)} placeholder="ex. Marius" className={`w-full px-3 py-2 rounded-xl border ${t.input}`} />
+            </Field>
+            <Field t={t} label="Sex">
+              <div className="flex gap-2">
+                <Chip t={t} on={p.sex === "m"} onClick={() => upd("sex", "m")} label="Masculin" />
+                <Chip t={t} on={p.sex === "f"} onClick={() => upd("sex", "f")} label="Feminin" />
+              </div>
+            </Field>
+            <div className="grid grid-cols-3 gap-3">
+              <Field t={t} label="Vârstă"><input type="number" value={p.age} onChange={e => upd("age", +e.target.value)} className={`w-full px-3 py-2 rounded-xl border ${t.input}`} /></Field>
+              <Field t={t} label="Înălțime (cm)"><input type="number" value={p.height} onChange={e => upd("height", +e.target.value)} className={`w-full px-3 py-2 rounded-xl border ${t.input}`} /></Field>
+              <Field t={t} label="Greutate (kg)"><input type="number" value={p.weight} onChange={e => upd("weight", +e.target.value)} className={`w-full px-3 py-2 rounded-xl border ${t.input}`} /></Field>
+            </div>
+            <Field t={t} label="Nivel de activitate">
+              <div className="flex flex-wrap gap-2">
+                {[["sedentary", "Sedentar"], ["light", "Ușor"], ["active", "Activ"], ["veryActive", "Foarte activ"]].map(([id, l]) =>
+                  <Chip key={id} t={t} on={p.activity === id} onClick={() => upd("activity", id)} label={l} />)}
+              </div>
+            </Field>
+            <Field t={t} label="Aparență fizică">
+              <div className="flex flex-wrap gap-2">
+                {[["thin", "Slab"], ["fit", "Fit/ateletic"], ["normal", "Normal"], ["overweight", "Kilograme în plus"], ["obese", "Supraponderal marcant"]].map(([id, l]) =>
+                  <Chip key={id} t={t} on={p.appearance === id} onClick={() => upd("appearance", id)} label={l} />)}
+              </div>
+            </Field>
+            {p.sex === "f" && (
+              <Field t={t} label="Status menstrual / menopauză (important pentru axa estrogen)">
+                <RadioGroup t={t} options={EXAM.menopause} value={p.menopause} onChange={v => upd("menopause", v)} />
+              </Field>
+            )}
+          </Card>
+        )}
+        {step === 1 && (
+          <div className="space-y-4">
+            {SYMPTOM_GROUPS.map(g => (
+              <Card key={g.g} t={t}>
+                <h3 className="font-semibold mb-3">{g.g}</h3>
+                <div className="flex flex-wrap gap-2">
+                  {g.items.map(s => <Chip key={s} t={t} on={p.symptoms.includes(s)} onClick={() => toggleSymptom(s)} label={s} />)}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* STEP 2 */}
+        {step === 2 && (
+          <Card t={t}>
+            <h2 className="font-semibold mb-1">Semne tradiționale (TCM) — diagnostic amplificat</h2>
+            <p className={`text-sm ${t.sub} mb-4`}>Uită-te dimineața la limbă, în lumină naturală, înainte de cafea. Fiecare răspuns alimentează tiparele de organe.</p>
+            <Field t={t} label="1. Relația cu temperatura"><RadioGroup t={t} options={TCM_SIGNS.temp} value={p.temp} onChange={v => upd("temp", v)} /></Field>
+            <Field t={t} label="2. Corpul limbii"><RadioGroup t={t} options={TCM_SIGNS.tongueBody} value={p.tongueBody} onChange={v => upd("tongueBody", v)} /></Field>
+            <Field t={t} label="3. Depozitul limbii"><RadioGroup t={t} options={TCM_SIGNS.tongueCoat} value={p.tongueCoat} onChange={v => upd("tongueCoat", v)} /></Field>
+            <Field t={t} label="4. Setea"><RadioGroup t={t} options={TCM_SIGNS.thirst} value={p.thirst} onChange={v => upd("thirst", v)} /></Field>
+            <Field t={t} label="5. Tranzitul — forma scaunului"><RadioGroup t={t} options={TCM_SIGNS.stool} value={p.stool} onChange={v => upd("stool", v)} /></Field>
+            <Field t={t} label="5b. Frecvența tranzitului"><RadioGroup t={t} options={TCM_SIGNS.stoolFreq} value={p.stoolFreq} onChange={v => upd("stoolFreq", v)} /></Field>
+            <Field t={t} label="6. Transpirația"><RadioGroup t={t} options={TCM_SIGNS.sweat} value={p.sweat} onChange={v => upd("sweat", v)} /></Field>
+            <Field t={t} label="7. Somnul — tipar de trezire"><RadioGroup t={t} options={TCM_SIGNS.sleep} value={p.sleep} onChange={v => upd("sleep", v)} /></Field>
+            <Field t={t} label="8. Starea emoțională dominantă"><RadioGroup t={t} options={TCM_SIGNS.emotion} value={p.emotion} onChange={v => upd("emotion", v)} /></Field>
+            <Field t={t} label="9. Caracteristica durerilor (dacă există)"><RadioGroup t={t} options={TCM_SIGNS.pain} value={p.pain} onChange={v => upd("pain", v)} /></Field>
+            <Field t={t} label="10. Cum reacționezi la alimente crude"><RadioGroup t={t} options={TCM_SIGNS.digestionRaw} value={p.digestionRaw} onChange={v => upd("digestionRaw", v)} /></Field>
+            <Field t={t} label="11. Energia dimineața"><RadioGroup t={t} options={[{ id: "low", label: "Am nevoie de ore să mă pornesc" }, { id: "ok", label: "Stabil" }, { id: "wired", label: "Agitat dar epuizat (wired & tired)" }]} value={p.energy} onChange={v => upd("energy", v)} /></Field>
+          </Card>
+        )}
+
+        {/* STEP 3 — examen fizic auto */}
+        {step === 3 && (
+          <div className="space-y-4">
+            <Card t={t}>
+              <h2 className="font-semibold mb-1">Examen fizic auto — semne obiective</h2>
+              <p className={`text-sm ${t.sub} mb-4`}>Exact ce ar verifica un practician TCM la consult. Ia-ți 5 minute, în fața oglinii, în lumină naturală.</p>
+              <Field t={t} label="1. Venele de sub limbă (ridică limba, uită-te în oglindă)"><RadioGroup t={t} options={EXAM.sublingual} value={p.sublingual} onChange={v => upd("sublingual", v)} /></Field>
+              <Field t={t} label="2. Unde e depusă cea mai multă grăsime"><RadioGroup t={t} options={EXAM.fatDist} value={p.fatDist} onChange={v => upd("fatDist", v)} /></Field>
+              <Field t={t} label="3. Culoarea feței (complexionul)"><RadioGroup t={t} options={EXAM.complexion} value={p.complexion} onChange={v => upd("complexion", v)} /></Field>
+              <Field t={t} label="4. Ochii & unghiile"><div className="flex flex-wrap gap-2">{EXAM.eyesNails.map(e => <Chip key={e.id} t={t} on={p.eyesNails.includes(e.id)} onClick={() => toggleExam("eyesNails", e.id)} label={e.label} />)}</div></Field>
+              <Field t={t} label="5. Puncte dureroase la apăsat (selectează toate care se aplică)"><div className="flex flex-wrap gap-2">{EXAM.tender.map(e => <Chip key={e.id} t={t} on={p.tender.includes(e.id)} onClick={() => toggleExam("tender", e.id)} label={e.label} />)}</div></Field>
+              <Field t={t} label="6. Iritații/bube — unde apar cel mai des? (maparea facială TCM)"><div className="flex flex-wrap gap-2">{EXAM.skinZones.map(e => <Chip key={e.id} t={t} on={p.skinZones.includes(e.id)} onClick={() => toggleExam("skinZones", e.id)} label={e.label} />)}</div></Field>
+              <Field t={t} label="7. Semne pe piele (selectează toate care se aplică)"><div className="flex flex-wrap gap-2">{EXAM.skinMarks.map(e => <Chip key={e.id} t={t} on={p.skinMarks.includes(e.id)} onClick={() => toggleExam("skinMarks", e.id)} label={e.label} />)}</div><p className={`text-xs ${t.sub}`}>Alunițele care își schimbă forma/culoarea sau sângerează cer consult dermatologic — indiferent de interpretarea energetică.</p></Field>
+            </Card>
+            <Card t={t}>
+              <h2 className="font-semibold mb-1">Efort & funcție metabolică</h2>
+              <Field t={t} label="8. Urcatul scărilor (3 etaje)"><RadioGroup t={t} options={EXAM.stairs} value={p.stairs} onChange={v => upd("stairs", v)} /></Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field t={t} label="9. Temp. axilară matinală (°C)"><input type="number" step="0.1" value={p.morningTemp} onChange={e => upd("morningTemp", e.target.value)} placeholder="ex. 36.2" className={`w-full px-3 py-2 rounded-xl border ${t.input}`} /></Field>
+                <Field t={t} label="10. Puls de repaus (bpm)"><input type="number" value={p.restingPulse} onChange={e => upd("restingPulse", e.target.value)} placeholder="ex. 58" className={`w-full px-3 py-2 rounded-xl border ${t.input}`} /></Field>
+              </div>
+              <p className={`text-xs ${t.sub} mb-5`}>Temperatura: termometru la subsuoară 10 min, imediat după trezire, nemișcat. Puls: numără 15 sec × 4, după 5 min de șezut. Dacă nu ai acum, lasă gol — poți oricând să revii și editezi.</p>
+              <Field t={t} label="11. Status tiroidian cunoscut (dacă ai analiză recentă)"><RadioGroup t={t} options={EXAM.tsh} value={p.tsh} onChange={v => upd("tsh", v)} /></Field>
+            </Card>
+          </div>
+        )}
+
+        {/* STEP 4 — obiceiuri */}
+        {step === 4 && (
+          <Card t={t}>
+            <h2 className="font-semibold mb-1">Obiceiuri metabolice (Ray Peat)</h2>
+            <p className={`text-sm ${t.sub} mb-4`}>Fiecare alimentează axa metabolică corespunzătoare (tiroidă, cortisol, glicemie etc.).</p>
+            <div className="flex flex-wrap gap-2">
+              {PEAT_HABITS.map(h => <Chip key={h.id} t={t} on={p.habits.includes(h.id)} onClick={() => toggleHabit(h.id)} label={h.label} />)}
+            </div>
+          </Card>
+        )}
+
+        {/* STEP 5 — raport */}
+        {step === 5 && result && (
+          <div>
+            {/* tab bar */}
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4" style={{ scrollbarWidth: "thin" }}>
+              {RESULT_TABS.map(tb => (
+                <button key={tb.id} onClick={() => setTab(tb.id)}
+                  className={`shrink-0 px-3.5 py-2 rounded-xl text-sm whitespace-nowrap transition-all ${tab === tb.id ? t.chipOn + " font-semibold" : t.chip}`}>
+                  {tb.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ---------- GENERAL ---------- */}
+            {tab === "general" && (
+              <div className="space-y-5">
+                <Card t={t}>
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h2 className="font-semibold text-lg">Raport metabolic integrat</h2>
+                    <button onClick={saveProfile} className={`px-4 py-2 rounded-xl text-sm font-semibold ${t.accent} text-white`}>💾 Salvează</button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      ["IMC", result.bmi.toFixed(1), result.bmiLabel],
+                      ["BMR", result.bmr + " kcal", "metabolism bazal"],
+                      ["TDEE", result.tdee + " kcal", "consum zilnic"],
+                      ["Scor metabolic", result.metabolicScore + "/100", result.metabolicScore > 70 ? "bun" : result.metabolicScore > 45 ? "mediu" : "de optimizat"],
+                    ].map(([k, v, s]) => (
+                      <div key={k} className={`${t.soft} rounded-xl p-3`}>
+                        <p className={`text-xs ${t.sub}`}>{k}</p>
+                        <p className="font-bold">{v}</p>
+                        <p className={`text-[10px] ${t.sub}`}>{s}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+                <Card t={t}>
+                  <h3 className="font-semibold mb-3">Sinteza în 3 puncte</h3>
+                  <ul className="space-y-3 text-sm">
+                    <li>☯️ <b>TCM:</b> tipar dominant <b>{PATTERNS[result.dominant].name}</b> (element <b>{PATTERNS[result.dominant].element}</b>), secundar: {PATTERNS[result.secondary].name}.</li>
+                    <li>🔥 <b>Peat:</b> axa cea mai slabită este <b>{PEAT_AXES[weakestAxis(result.axes)].name}</b> — vezi tabul Metabolic pentru detaliile specifice.</li>
+                    <li>🍂 <b>Anotimp curent:</b> <b>{result.season.name}</b> ({result.season.element}, organe: {result.season.organ}) — recomandările sezoniere sunt în tabul Anotimp.</li>
+                  </ul>
+                </Card>
+                <Card t={t}>
+                  <h3 className="font-semibold mb-3">Ținte nutriționale orientative (stil Peat, adaptate)</h3>
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    {[["Proteine", result.proteinTarget + " g"], ["Carbohidrați", result.carbTarget + " g"], ["Grăsimi", result.fatTarget + " g"]].map(([k, v]) => (
+                      <div key={k} className={`${t.soft} rounded-xl p-3`}>
+                        <p className={`text-xs ${t.sub}`}>{k}</p>
+                        <p className="font-bold">{v}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className={`text-xs ${t.sub} mt-3`}>Proteinele: ~1/3 din gelatină/bulion pentru raport aminoacizi anti-inflamator. Carbohidrați din fructe/cartofi/orez/miere, grăsimi mai ales saturate.</p>
+                </Card>
+              </div>
+            )}
+
+            {/* ---------- TCM ---------- */}
+            {tab === "tcm" && (
+              <div className="space-y-5">
+                <Card t={t}>
+                  <h3 className="font-semibold mb-2">Harta tiparelor — principiile celor 8 (Ba Gang)</h3>
+                  <div className={`p-4 rounded-xl mb-4 ${t.soft}`}>
+                    <p className={`font-bold ${t.accentText}`}>{PATTERNS[result.dominant].name} — element {PATTERNS[result.dominant].element}</p>
+                    <p className="text-sm mt-1">{PATTERNS[result.dominant].desc}</p>
+                    <p className={`text-xs ${t.sub} mt-2`}>Tipar secundar: {PATTERNS[result.secondary].name} — tratează-l și pe el, dar prioritizarea e dominant → secundar.</p>
+                  </div>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={radarTcm} outerRadius="72%">
+                        <PolarGrid stroke={theme === "dark" ? "#444" : "#ddd"} />
+                        <PolarAngleAxis dataKey="n" tick={{ fontSize: 9, fill: theme === "dark" ? "#a8a29e" : "#78716c" }} />
+                        <PolarRadiusAxis domain={[0, 100]} tick={false} />
+                        <Radar dataKey="v" stroke="#d97706" fill="#d97706" fillOpacity={0.5} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {Object.entries(result.patterns).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => (
+                      <div key={k} className={`${t.soft} rounded-xl p-3`}>
+                        <p className="font-medium text-sm">{PATTERNS[k].name} <span className={`text-xs ${t.sub}`}>({v} pct · organ: {PATTERNS[k].organ})</span></p>
+                        {v >= maxPt(result)*0.6 && <p className={`text-xs ${t.sub} mt-1`}>{PATTERNS[k].desc}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+                <Card t={t}>
+                  <h3 className="font-semibold mb-2">Interpretare Yin/Yang & echilibru</h3>
+                  {yinYangSummary(result)}
+                </Card>
+                <Card t={t}>
+                  <h3 className="font-semibold mb-2">Reguli terapeutice pentru tiparele tale</h3>
+                  <ul className="space-y-2 text-sm list-disc list-inside">
+                    {tcmRules(result).map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
+                </Card>
+              </div>
+            )}
+
+            {/* ---------- PEAT ---------- */}
+            {tab === "peat" && (
+              <div className="space-y-5">
+                <Card t={t}>
+                  <h3 className="font-semibold mb-1">Profilul axelor metabolice (Ray Peat)</h3>
+                  <p className={`text-sm ${t.sub} mb-3`}>Estimări orientative din semne & obiceiuri — nu înlocuiesc analizele (TSH, fT3, rt3, glicemie, fier/ferritină).</p>
+                  <div className="h-56 mb-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={peatBar} layout="vertical" margin={{ left: 20, right: 40 }}>
+                        <XAxis type="number" domain={[0, 100]} hide />
+                        <YAxis type="category" dataKey="n" tick={{ fontSize: 10, fill: theme === "dark" ? "#a8a29e" : "#78716c" }} width={150} />
+                        <Tooltip />
+                        <Bar dataKey="v" fill="#d97706" radius={[0, 8, 8, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="space-y-3">
+                    {Object.entries(result.axes).sort((a, b) => a[1] - b[1]).map(([k, v]) => (
+                      <div key={k} className={`${t.soft} rounded-xl p-3`}>
+                        <p className="font-medium text-sm">{PEAT_AXES[k].name} — <b className={v > 70 ? "text-green-600" : v > 45 ? t.accentText : "text-red-500"}>{v}/100</b></p>
+                        <p className={`text-xs ${t.sub}`}>{PEAT_AXES[k].desc}</p>
+                        {result.axisHits[k] && result.axisHits[k].length > 0 && v > 70 && (
+                          <p className={`text-xs mt-1 ${t.sub}`}>🔎 Observații minore (scorul rămâne bun): {result.axisHits[k].slice(0, 4).join("; ")}</p>
+                        )}
+                        {result.axisHits[k] && result.axisHits[k].length > 0 && v <= 70 && (
+                          <p className={`text-xs mt-1 ${t.sub}`}>⚠️ Contribuții: {result.axisHits[k].slice(0, 4).join("; ")}</p>
+                        )}
+                        {(!result.axisHits[k] || result.axisHits[k].length === 0) && (
+                          <p className={`text-xs mt-1 text-green-600`}>✅ Fără semnale pe această axă.</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+                <Card t={t}>
+                  <h3 className="font-semibold mb-2">De ce contează fiecare axă — pe scurt</h3>
+                  <ul className="space-y-2 text-sm list-disc list-inside">
+                    <li><b>Tiroida:</b> dictează temperatura și rata fiecărei celule; PUFA, postul și stresul blochează conversia T4→T3.</li>
+                    <li><b>Cortizolul:</b> hormonul „foamei de energie“ — descompune mușchiul pentru glucoză dacă nu mănânci carbohidrați la timp.</li>
+                    <li><b>Estrogenul:</b> în exces blochează tiroida și reține apă; se hrănește din PUFA, intestinul lent și somnul scurt.</li>
+                    <li><b>Glicemia:</b> stabilitatea glicemică = „motorul“ lin; crash-urile cer cortizol și adrenalină.</li>
+                    <li><b>Inflamația:</b> fiecare focar (intestin, articulații, PUFA) „fură“ energie metabolică.</li>
+                    <li><b>Intestinul:</b> endotoxina blochează metabolismul; hrănește-l cu gelatină, fructe gătite, mese regulate.</li>
+                  </ul>
+                  <p className={`text-xs ${t.sub} mt-3`}>🧠 Pentru mecanismele profunde — PUFA ca motor al îmbătrânirii, estrogenul neopus (inclusiv la menopauză) și de ce „TSH peste 2“ contează — vezi tabul <b>Mecanisme</b>.</p>
+                </Card>
+              </div>
+            )}
+
+            {/* ---------- MECANISME ---------- */}
+            {tab === "mecanisme" && (
+              <div className="space-y-5">
+                <Card t={t}>
+                  <p className={`text-xs ${t.sub}`}>Acestea sunt motoarele profunde din spatele scorurilor tale — PUFA, estrogenul neopus și tiroida, văzute prin lentila lui Ray Peat, cu punctele de contact cu TCM.</p>
+                </Card>
+                {EDUCATION.map(sec => (
+                  <Card key={sec.h} t={t}>
+                    <h3 className="font-semibold mb-3">{sec.h}</h3>
+                    <div className="space-y-2">
+                      {sec.p.map((x, i) => (
+                        <p key={i} className={`text-sm ${i > 0 ? t.sub : ""}`} dangerouslySetInnerHTML={{ __html: x }} />
+                      ))}
+                    </div>
+                  </Card>
+                ))}
+                {p.sex === "f" && ["peri", "meno", "post"].includes(p.menopause) && (
+                  <Card t={t}>
+                    <p className="text-sm font-semibold text-red-500">⚠️ Profilul tău hormonal (peri/menopauză) intră exact în fereastra de risc „estrogen neopus“ descrisă mai sus. La peri-menopauză fibroamele cresc tocmai pentru că progesteronul dispare primul. Discută cu medicul despre testarea estrogenului, progesteronului și raportului E/P — vezi și tabul 💊 Suplimente.</p>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {/* ---------- PRESOPUNCTURĂ ---------- */}
+            {tab === "presopunctura" && (
+              <div className="space-y-5">
+                <Card t={t}>
+                  <h3 className="font-semibold mb-1">👐 Presopunctură, reflexoterapie & Tai Chi / Qigong</h3>
+                  <p className={`text-sm ${t.sub} mb-1`}>Protocol generat pentru tiparele tale TCM cu scor ≥ 3: <b className={t.text}>{acuFor(result).map(k => PATTERNS[k].name).join(" · ") || PATTERNS[result.dominant].name}</b>.</p>
+                  <p className={`text-xs ${t.sub}`}>Apasă ferm, fără durere, respirând adânc, 1–2 min/punct, zilnic. Reflexoterapia: masează zonele de pe talpă 3–5 min. Tai Chi: 5–10 min/zi, mișcările lente sunt partea „yang“ blândă a terapiei.</p>
+                </Card>
+                {acuFor(result).map(k => (
+                  <Card key={k} t={t}>
+                    <h4 className="font-semibold mb-3">{ACU[k].title}</h4>
+                    <div className="space-y-2 mb-3">
+                      {ACU[k].points.map(pt => (
+                        <div key={pt.n} className={`${t.soft} rounded-xl p-3`}>
+                          <p className="font-medium text-sm">{pt.n}</p>
+                          <p className={`text-xs ${t.sub}`}>📍 {pt.loc}</p>
+                          <p className={`text-xs ${t.sub}`}>🖐️ {pt.how}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs mb-2">🦶 <b>Reflexoterapie:</b> {ACU[k].reflex}</p>
+                    <p className="text-xs">🧘 <b>Tai Chi / Qigong:</b> {ACU[k].tai}</p>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* ---------- ALIMENTE ---------- */}
+            {tab === "alimente" && (
+              <div className="space-y-5">
+                {FOOD_FAVOR.map(cat => (
+                  <Card key={cat.cat} t={t}>
+                    <h3 className="font-semibold mb-3">✅ {cat.cat}</h3>
+                    <div className="space-y-2">
+                      {cat.items.map(f => (
+                        <div key={f.n} className={`${t.soft} rounded-xl p-3`}>
+                          <p className="font-medium text-sm">{f.n}{f.note && <span className={`ml-1 text-xs ${t.accentText}`}>({f.note})</span>}</p>
+                          <p className={`text-xs ${t.sub}`}>☯️ {f.tcm} · 🔥 {f.peat}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                ))}
+                {FOOD_AVOID.map(cat => (
+                  <Card key={cat.cat} t={t}>
+                    <h3 className="font-semibold mb-1 text-red-500">❌ {cat.cat}</h3>
+                    <p className={`text-xs ${t.sub} mb-3`}>{cat.why}</p>
+                    <div className="space-y-2">
+                      {cat.items.map(f => (
+                        <div key={f.n} className={`${t.soft} rounded-xl p-3`}>
+                          <p className="font-medium text-sm">{f.n}</p>
+                          <p className={`text-xs ${t.sub}`}>☯️ {f.tcm} · 🔥 {f.peat}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                ))}
+                <Card t={t}>
+                  <h3 className="font-semibold mb-3">⚖️ Conflicte TCM × Peat — și cum le rezolvi</h3>
+                  <div className="space-y-3">
+                    {FOOD_CONFLICTS.map(c => (
+                      <div key={c.topic} className={`${t.soft} rounded-xl p-3`}>
+                        <p className="font-semibold text-sm mb-1">{c.topic}</p>
+                        <p className="text-xs">☯️ {c.tcmSide}</p>
+                        <p className="text-xs mt-1">🔥 {c.peatSide}</p>
+                        <p className={`text-xs mt-2 font-medium ${t.accentText}`}>✔️ Soluție practică: {c.fix}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* ---------- SUPLIMENTE ---------- */}
+            {tab === "supl" && (
+              <div className="space-y-5">
+                <Card t={t}>
+                  <h3 className="font-semibold mb-1">💊 Protocol de suplimente personalizat</h3>
+                  <p className={`text-sm ${t.sub} mb-1`}>Filtrat după tiparele tale TCM și axele Peat. Aparate în ordinea importanței.</p>
+                  <p className={`text-xs ${t.sub} mb-4`}>⚠️ Dozele sunt orientative; la orice condiție medicală sau medicație, verifică cu medicul înainte.</p>
+                </Card>
+                {SUPPLEMENTS.filter(s => s.showIf({ p, patterns: result.patterns, axes: result.axes, habits: p.habits })).map((s, idx) => (
+                  <Card key={s.n} t={t}>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="font-semibold text-sm">{idx + 1}. {s.n}</h3>
+                      {s.conflict !== "none" && <span className={`text-[10px] px-2 py-1 rounded-full shrink-0 ${s.conflict === "HIGH" ? "bg-red-500 text-white" : s.conflict === "MEDIUM" ? "bg-amber-500 text-stone-900" : "bg-stone-400 text-white"} font-bold`}>{s.conflict}</span>}
+                    </div>
+                    <p className={`text-xs ${t.sub} mb-2`}>⚖️ Doză: {s.dose} · 🕐 {s.when}</p>
+                    <p className="text-xs mb-1">☯️ <b>TCM:</b> {s.tcm}</p>
+                    <p className="text-xs mb-2">🔥 <b>Peat:</b> {s.peat}</p>
+                    <p className="text-xs text-red-500">⚠️ {s.cautions}</p>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* ---------- SEZON ---------- */}
+            {tab === "sezon" && (
+              <div className="space-y-5">
+                <Card t={t}>
+                  <h3 className="font-semibold mb-1">🍂 {result.season.name} — elementul {result.season.element}</h3>
+                  <p className={`text-sm ${t.sub} mb-3`}>Organe de sezon: <b>{result.season.organ}</b> · Emoția sezonului: {result.season.emotion}</p>
+                  <div className={`p-4 rounded-xl mb-4 ${t.soft}`}>
+                    <p className="text-sm"><b>Nota pentru tiparul tău:</b> {result.season.note}</p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div><p className={`text-xs font-semibold ${t.accentText} mb-1`}>FOODS DE FAVORIZAT</p><ul className="text-xs space-y-1 list-disc list-inside">{result.season.tcmFavor.map(x => <li key={x}>{x}</li>)}</ul></div>
+                    <div><p className="text-xs font-semibold text-red-500 mb-1">DE REDUS</p><ul className="text-xs space-y-1 list-disc list-inside">{result.season.tcmReduce.map(x => <li key={x}>{x}</li>)}</ul></div>
+                    <div><p className={`text-xs font-semibold ${t.accentText} mb-1`}>PRACTICI DE SEZON</p><ul className="text-xs space-y-1 list-disc list-inside">{result.season.practices.map(x => <li key={x}>{x}</li>)}</ul></div>
+                    <div><p className="text-xs font-semibold mb-1">🔥 ADAPTARE PEAT</p><p className="text-xs">{result.season.peat}</p></div>
+                  </div>
+                </Card>
+                <Card t={t}>
+                  <h3 className="font-semibold mb-3">Ciclul anual complet (5 elemente)</h3>
+                  <div className="grid grid-cols-5 gap-2">
+                    {SEASONS.map((s, i) => (
+                      <button key={s.id} onClick={() => setTab("sezon") /* visual only */}
+                        className={`rounded-xl p-2 text-center text-[10px] leading-tight ${i === seasonIdx ? t.chipOn + " font-bold" : t.soft}`}>
+                        <span className="block text-lg mb-1">{["🌱", "☀️", "🌻", "🍂", "❄️"][i]}</span>
+                        {s.name.split(" (")[0]}
+                      </button>
+                    ))}
+                  </div>
+                  <p className={`text-xs ${t.sub} mt-3`}>Yin/Yang prin an: iarna = stocare (Yin, somn, mineralizare), vara = expansiune (Yang, lumină, mișcare). Tranzițiile de sezon (echinocții/solstiții) sunt momentele când tiparele se pot destabiliza — păstrează mesele simple și regulate în acele 2 săptămâni.</p>
+                </Card>
+                {seasonAdjust(result).length > 0 && (
+                  <Card t={t}>
+                    <h3 className="font-semibold mb-3">Ajustări sezoniere pentru tiparele tale</h3>
+                    <ul className="space-y-2 text-sm list-disc list-inside">{seasonAdjust(result).map((x, i) => <li key={i}>{x}</li>)}</ul>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {/* ---------- PLAN ---------- */}
+            {tab === "plan" && (
+              <div className="space-y-5">
+                <Card t={t}>
+                  <h3 className="font-semibold mb-3">📋 Plan practic — ordinea priorităților</h3>
+                  <ol className="space-y-2 text-sm list-decimal list-inside">{planFor(p, result).map((x, i) => <li key={i}>{x}</li>)}</ol>
+                </Card>
+                <Card t={t}>
+                  <h3 className="font-semibold mb-3">🍽️ O zi exemplu, pentru profilul tău</h3>
+                  <div className="space-y-2">
+                    {dayMenu(p, result).map(m => (
+                      <div key={m.m} className={`${t.soft} rounded-xl p-3`}>
+                        <p className="text-xs font-semibold">{m.m}</p>
+                        <p className="text-sm">{m.x}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+                <Card t={t}>
+                  <h3 className="font-semibold mb-3">📈 Ce să monitorizezi (metrici simple)</h3>
+                  <ul className="space-y-2 text-sm list-disc list-inside">
+                    <li><b>Temperatura axilară</b> dimineața (10 min nemișcat) și la prânz — Peat: peste 36,5°C la prânz = tiroidă bună.</li>
+                    <li><b>Pulsul</b> de repaus — 60–75 bpm semnal bun (Peat corelează pulsul cu funcția tiroidiană).</li>
+                    <li><b>Limba</b> în oglindă săptămânal — depozitul și culoarea ar trebui să se normalizeze în 4–8 săptămâni.</li>
+                    <li><b>Tranzit & energie postprandială</b> — somnolența după masă trebuie să scadă.</li>
+                    <li><b>Somn:</b> la ce oră te trezești noaptea (1–3 = Ficat, 3–5 = Plămân) — urmărește dacă dispare.</li>
+                  </ul>
+                </Card>
+                <p className={`text-xs ${t.sub} px-2`}>⚕️ Acest raport combină paradigme tradiționale și o abordare nutrițională controversată în medicina academică. Nu înlocuiește consultul medical, iar pentru formule clasice TCM (cu ierburi) mergi la un practician licențiat.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* nav */}
+        {step < 5 ? (
+          <div className="flex justify-between mt-6">
+            <button onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}
+              className={`px-5 py-2.5 rounded-xl text-sm font-medium border ${t.input} disabled:opacity-40`}>&larr; Înapoi</button>
+            <button onClick={() => canNext() && setStep(step + 1)}
+              className={`px-5 py-2.5 rounded-xl text-sm font-semibold ${t.accent} text-white disabled:opacity-40`} disabled={!canNext()}>
+              {step === 4 ? "Generează raportul ✨" : "Continuă →"}
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2 mt-6">
+            <button onClick={() => setStep(0)} className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>Editează datele</button>
+            <button onClick={() => { setStep(0); setP({ ...p, symptoms: [], habits: [] }); }} className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>Profil nou</button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+/* ---------- helpers de sinteză ---------- */
+
+function shortName(k) {
+  const map = { spleenQi: "Qi Splină", kidneyYang: "Yang Rinichi", kidneyYin: "Yin Rinichi", liverQi: "Qi Ficat", liverFire: "Foc Ficat", heartBlood: "Sânge Inimă", heartYin: "Yin Inimă", lungQi: "Qi Plămân", damp: "Umezeală", bloodStasis: "Stază Sânge", stomachYin: "Yin Stomac" };
+  return map[k];
+}
+function maxPt(r) { return Math.max(...Object.values(r.patterns)); }
+function weakestAxis(axes) { return Object.entries(axes).sort((a, b) => a[1] - b[1])[0][0]; }
+function acuFor(r) {
+  const sel = Object.entries(r.patterns).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 3).map(([k]) => k);
+  return sel.length ? sel : [r.dominant];
+}
+
+function yinYangSummary(r) {
+  const yang = r.patterns.spleenQi + r.patterns.kidneyYang + r.patterns.lungQi * 0.5;
+  const yin = r.patterns.kidneyYin + r.patterns.stomachYin + r.patterns.heartYin;
+  const heat = r.patterns.liverFire + r.patterns.damp;
+  let out = [];
+  if (yang > yin + 2) out.push("Profil predominant <b>Yang-deficient</b> (frig, oboseală): tot protocolul se construiește pe căldură — alimente gătite calde, ghimbir, miere, masă regulată. Regula de aur: „gătit & cald“.");
+  else if (yin > yang + 2) out.push("Profil predominant <b>Yin-deficient</b> (uscare, căldură vidă): hrănește lichidele — gelatină, bulion, pere coapte, lapte cald, somn înainte de 23:00. Evită condimentele fierbinți în exces.");
+  else out.push("Echilibru relativ Yin/Yang pe fond general — prioritizează tiparul dominant din radar.");
+  if (heat >= 4) out.push("Componentă de <b>Căldură/Umezeală</b> prezentă: nu aplica orbește tonifieri Yang (ginseng!) — curăță mai întâi (mentă, ceai verde slab dimineața, reduce zahărul+grăsime combinate).");
+  if (r.patterns.bloodStasis >= 3) out.push("Stază de Sânge marcată: mișcare zilnică blândă + condimente care mișcă sângele; la femei, urmărirea ciclului e indicatorul cheie.");
+  return out.map((x, i) => <p key={i} className="text-sm mb-2" dangerouslySetInnerHTML={{ __html: x }} />);
+}
+
+function tcmRules(r) {
+  const rules = [];
+  if (r.patterns.spleenQi >= 2) rules.push("Splină: mese calde, gătite, la ore fixe; niciodată mâncatul în grabă sau sub stres; ghimbir în ceai dimineața.");
+  if (r.patterns.kidneyYang >= 2) rules.push("Rinichi-Yang: acoperă lombarul, evită frigul prelungit, supă de oase cu scorțișoară; somn înainte de 23:00.");
+  if (r.patterns.kidneyYin >= 2) rules.push("Rinichi-Yin: culcare devreme (orele 23:00 = pivotul Yin-ului), gelatină/bulion, evită cafeaua după prânz.");
+  if (r.patterns.liverQi >= 2) rules.push("Ficat-Qi: mișcare aer liber zilnic, respirații în natură; redu alcoolul; exprimă frustrarea (jurnal, vorbit) înainte de masă.");
+  if (r.patterns.liverFire >= 2) rules.push("Foc de Ficat: redu cafeaua/alcoolul/condimentele fierbinți; mentă, chrysanthemum; nu mânca enervat.");
+  if (r.patterns.heartBlood >= 2 || r.patterns.heartYin >= 2) rules.push("Inimă: rutină de seara liniștită, lapte cald cu miere, fără ecrane 1h înainte de culcare.");
+  if (r.patterns.lungQi >= 2) rules.push("Plămân: respirații profunde dimineața, gât acoperit la vânt, miere mică doze.");
+  if (r.patterns.damp >= 3) rules.push("Umezeală: 10 min plimbare după fiecare masă, redu lactatele procesate și zahărul+grăsime combinate; orez cu ghimbir.");
+  if (r.patterns.bloodStasis >= 3) rules.push("Stază: plimbări + qigong zilnic; adaugă puțin ghimbir/scorțișoară la mese; Evită sedentarismul prelungit.");
+  if (r.patterns.stomachYin >= 2) rules.push("Stomac-Yin: mese mici și dese, supe-gelatină, pere coapte; evită alimente foarte uscate.");
+  if (rules.length === 0) rules.push("Tipare discrete — menține mese regulate, somn bun și mișcare zilnică; re-evaluează la schimbarea anotimpului.");
+  return rules.slice(0, 7);
+}
+
+function seasonAdjust(r) {
+  const out = [];
+  const s = r.season;
+  const seasonConflict = {
+    spring: "Primăvara + Foc de Ficat: evită „curele“ agresive; la Spleen slab, verdeturile se gătesc.",
+    summer: "Vara + Yang/Rinichi deficitar: NU exagera cu băuturile reci chiar dacă e cald — ele lovesc exact punctul tău slab.",
+    earth: "Sezonul de Pământ + Spleen slab: e momentul TAU de reechilibrare — 2–3 săptămâni de discipline alimentară au efect maxim acum.",
+    autumn: "Toamna + Yin deficitar: pielea/gâtul uscat se agravează — dublează gelatina, pere coapte, miere; Plămân & Colon: hidratare activă.",
+    winter: "Iarna + tipar rece (Yang defic): sezonul cel mai delicat pentru tine — ZERO alimente crude/rece, supă de oase zilnic, lombar cald.",
+  };
+  out.push(seasonConflict[s.id]);
+  if (r.patterns.damp >= 3 && (s.id === "earth" || s.id === "winter")) out.push("Umezeala ta se agravează în anotimpurile umede/grea: redu lactatele și fructele pe stomacul gol în această perioadă, crește ghimbir.");
+  if (r.patterns.kidneyYin >= 3 && s.id === "summer") out.push("Yin-deficiență + vară: protejează lichidele — lapte cald, pepene în doze mici, siestă, evită transpirarea excesivă.");
+  if (r.patterns.kidneyYang >= 3 && (s.id === "winter" || s.id === "autumn")) out.push("Yang-deficiență + sezon rece: acesta e „sezonul de risc“ pentru tine — încălzește fiecare masă, adaugă scorțișoară mică doze, nu lăsa foamea să se instaleze.");
+  if (r.patterns.liverFire >= 3 && s.id === "spring") out.push("Foc de Ficat + primăvară (sezonul Ficatului): riscul de iritabilitate/explozie e maxim — mentă, plimbări, somn devreme.");
+  return out;
+}
+
+function planFor(p, r) {
+  const plan = [];
+  if (p.habits.includes("pufa")) plan.push("Pasul 1, impact maxim: elimină uleiurile de semințe — înlocuiește cu unt, cocos, măsline. Acest singur pas deblochează tiroida și inflamația în 2–3 luni.");
+  if (p.habits.includes("fasting") || p.habits.includes("undereating")) plan.push("Stop post/skipping: mic dejun cu proteine + carbohidrați în max 1h de la trezire; la 3–4h mese mici cu proteine.");
+  if (r.patterns.spleenQi >= 2) plan.push("Construiește „focul digestiv“: 2 săptămâni doar mâncare caldă, gătită, cu ghimbir — reface Spleen-ul mai repede decât orice supliment.");
+  if (r.axes.cortisol < 70) plan.push("Protocolul anti-cortizol: lumină naturală dimineața, lapte cald + miere înainte de culcare (triptofan + calciu), respirație 4-7-8, plimbare fără telefon.");
+  if (r.axes.thyroid < 70) plan.push("Sprijin tiroidian: fructe zilnic (potasiu), seleniu + zinc, vitamină A; monitorizează temperatura axilară; dacă stagnează, cere analize tiroidiene complete (TSH, fT3, fT4, rt3, anticorpi).");
+  if (r.axes.bloodSugar < 70) plan.push("Stabilitate glicemică: nu combina carbohidrați goi cu grăsimi masive; adaugă proteine/gelatină la fiecare masă; miere în loc de sirop.");
+  if (r.axes.gut < 70) plan.push("Intestin: gelatină zilnic + bulion; fructe coapte; probiotice în doze mici crescătoare; exclude temporar leguminoasele.");
+  if (r.patterns.kidneyYin >= 2) plan.push("Yin-ul tău se repară NOAPTEA: culcarea la 23:00 e non-negociabilă — gelatină + lapte cald seara accelerează refacerea.");
+  if (r.patterns.kidneyYang >= 2) plan.push("Yang-ul tău se repară DIMINEAȚA: soare/prima masă caldă cât mai devreme, supă de oase cu ghimbir.");
+  if (p.habits.includes("cardio")) plan.push("Înlocuiește cardio prelungit: forță scurtă 2–3×/săpt + plimbări zilnice — protejează mușchiul și tiroida.");
+  if (r.bmi >= 25) plan.push(`Greutate: mic deficit blând (~${Math.max(1500, r.tdee - 300)} kcal) cu proteine ${r.proteinTarget}g — FĂRĂ înfometare, care la tiparul tău scade metabolismul și crește Damp-ul.`);
+  if (r.bmi < 18.5) plan.push(`Refacere: ~${r.tdee + 300} kcal/zi dense (lapte, ouă, gelatină, cartopi) + somn lung; nu cardio.`);
+  if (plan.length === 0) plan.push("Menține: mese regulate cu proteine + carbohidrați de calitate, somn 7–9h, lumină naturală zilnic, gelatină/bulion de bază.");
+  return plan.slice(0, 9);
+}
+
+function dayMenu(p, r) {
+  const cold = r.patterns.kidneyYang >= 2 || r.patterns.spleenQi >= 3;
+  const dry = r.patterns.kidneyYin >= 2 || r.patterns.stomachYin >= 2;
+  const damp = r.patterns.damp >= 3;
+  return [
+    { m: "☀️ Dimineața (trezire)", x: cold ? "Pahar de apă caldă + zeamă de ghimbir; lumină naturală 10 min. Cafea doar DUPĂ micul dejun." : "Apă la temperatura camerei; lumină naturală. Cafea cu lapte + zahăr după micul dejun." },
+    { m: "🥣 Micul dejun", x: cold ? "Ouă gătite în unt + cartofi copți + puțină gelatină în suc de portocale (cald)." : dry ? "Orez cu lapte cald + miere + un ou moale; pere coaptă." : "Ouă + cartofi copți + portocale; cafea cu zahăr și lapte." },
+    { m: "🍎 Gustare (3h)", x: damp ? "Fructe coapte (mere la cuptor) — NU crude pe stomacul gol." : "Portocale sau cireșe + puțin cașcaval sau gelatină în suc." },
+    { m: "🍲 Prânz (masa cea mai mare)", x: cold ? "Supă de oase cu scorțișoară mică doze + carne în sos cald + orez; legume bine gătite." : dry ? "Bulion cu gelatină + carne fragedă + cartofi piure cu unt; pere coaptă." : "Carne + cartofi copți cu unt + salată mică gătită; fructe." },
+    { m: "🫖 Gustare (17:00)", x: "Lapte cald mică doze (dacă tolerezi) sau ceai de mușețel cu miere; 2–3 nuci max dacă vrei." },
+    { m: "🌙 Cină (ultima masă 2–3h înainte de culcare)", x: "Ușoară: bulion + gelatină, cartopi mici doze, pește alb sau ouă; " + (cold ? "NU salată crudă." : "salată mică ok.") },
+    { m: "😴 Înainte de somn", x: (r.axes.cortisol < 75 || dry) ? "Lapte cald cu miere + o prafă de sare — triptofan + calciu, scade cortizolul seric." : "Ceai de mentă/mușețel; respir 4-7-8; fără ecrane 1h." },
+  ];
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
+/* PWA: înregistrare service worker (graceful dacă lipsește, ex. deschis local file://) */
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
