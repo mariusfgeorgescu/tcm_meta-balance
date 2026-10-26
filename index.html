@@ -514,7 +514,7 @@ function analyze(p) {
 
   /* --- constituții TCM --- */
   const pt = { spleenQi: 0, kidneyYang: 0, kidneyYin: 0, liverQi: 0, liverFire: 0, heartBlood: 0, heartYin: 0, lungQi: 0, damp: 0, bloodStasis: 0, stomachYin: 0 };
-  const A = (k, v) => { pt[k] += v; };
+  const A = (k, v) => { if (!(k in pt)) return; pt[k] += v; };
   // semne directe
   if (p.temp === "cold") { A("kidneyYang", 2); A("spleenQi", 1); }
   if (p.temp === "hot") { A("liverFire", 2); A("kidneyYin", 1); }
@@ -754,6 +754,7 @@ function App() {
   const t = THEMES[theme];
   const [step, setStep] = useState(0);
   const [tab, setTab] = useState("general");
+  const [previewSeason, setPreviewSeason] = useState(null);
   const [p, setP] = useState({
     name: "", sex: "m", age: 35, height: 175, weight: 75, activity: "light", appearance: "normal",
     symptoms: [],
@@ -771,7 +772,7 @@ function App() {
   const toggleHabit = h => setP(prev => ({ ...prev, habits: prev.habits.includes(h) ? prev.habits.filter(x => x !== h) : [...prev.habits, h] }));
   const toggleExam = (k, id) => setP(prev => ({ ...prev, [k]: prev[k].includes(id) ? prev[k].filter(x => x !== id) : [...prev[k], id] }));
 
-  const result = useMemo(() => (step === 5 ? analyze(p) : null), [step, p]);
+  const result = useMemo(() => (step === 5 ? analyze(p) : null), [step]); // eslint-disable-line
 
   const saveProfile = () => {
     const entry = { name: p.name || "Profil fără nume", date: new Date().toLocaleDateString("ro-RO"), data: p };
@@ -780,7 +781,26 @@ function App() {
     setMsg("Profil salvat pe acest dispozitiv ✓");
     setTimeout(() => setMsg(""), 2500);
   };
-  const loadProfile = (e) => { setP(e.data); setStep(4); setTab("general"); };
+ const DEFAULT_P = {
+  name: "", sex: "m", age: 35, height: 175, weight: 75, activity: "light", appearance: "normal",
+  symptoms: [], temp: "neutral", tongueBody: "normal", tongueCoat: "thin", thirst: "normal",
+  stool: "normal", sweat: "normal", sleep: "ok", emotion: "flat", pain: "none",
+  digestionRaw: "ok", energy: "ok", sublingual: "normal", tender: [], fatDist: "none",
+  complexion: "normal", eyesNails: [], skinZones: [], skinMarks: [], stoolFreq: "daily",
+  stairs: "easy", morningTemp: "", restingPulse: "", tsh: "unknown", menopause: "na", habits: [],
+};
+
+const loadProfile = (e) => {
+  const merged = { ...DEFAULT_P, ...(e?.data || {}) };
+  // asigură-te că array-urile sunt array-uri
+  ["symptoms","habits","tender","eyesNails","skinZones","skinMarks"].forEach(k => {
+    if (!Array.isArray(merged[k])) merged[k] = [];
+  });
+  setP(merged);
+  setStep(4);
+  setTab("general");
+};
+
 
   const canNext = () => step === 0 ? (p.age > 10 && p.height > 100 && p.weight > 25) : true;
 
@@ -797,7 +817,7 @@ function App() {
           <p className={`text-xs ${t.sub}`}>TCM profund × Ray Peat pro-metabolism</p>
         </div>
         <div className="flex items-center gap-2">
-          <select onChange={e => { const s = saved.find(x => x.name === e.target.value); if (s) loadProfile(s); }}
+         <select value="" onChange={e => { const s = saved.find(x => x.name === e.target.value); if (s) loadProfile(s); }}
             className={`hidden sm:block text-xs px-2 py-1.5 rounded-lg border ${t.input}`}>
             <option value="">Profiluri salvate…</option>
             {saved.map(s => <option key={s.name} value={s.name}>{s.name} ({s.date})</option>)}
@@ -1011,7 +1031,7 @@ function App() {
                     {Object.entries(result.patterns).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => (
                       <div key={k} className={`${t.soft} rounded-xl p-3`}>
                         <p className="font-medium text-sm">{PATTERNS[k].name} <span className={`text-xs ${t.sub}`}>({v} pct · organ: {PATTERNS[k].organ})</span></p>
-                        {v >= maxPt(result)*0.6 && <p className={`text-xs ${t.sub} mt-1`}>{PATTERNS[k].desc}</p>}
+                       {v >= maxPt(result.patterns)*0.6 && <p className={`text-xs ${t.sub} mt-1`}>{PATTERNS[k].desc}</p>}
                       </div>
                     ))}
                   </div>
@@ -1218,7 +1238,7 @@ function App() {
                   <h3 className="font-semibold mb-3">Ciclul anual complet (5 elemente)</h3>
                   <div className="grid grid-cols-5 gap-2">
                     {SEASONS.map((s, i) => (
-                      <button key={s.id} onClick={() => setTab("sezon") /* visual only */}
+                    <button key={s.id} onClick={() => setPreviewSeason(s.id)}
                         className={`rounded-xl p-2 text-center text-[10px] leading-tight ${i === seasonIdx ? t.chipOn + " font-bold" : t.soft}`}>
                         <span className="block text-lg mb-1">{["🌱", "☀️", "🌻", "🍂", "❄️"][i]}</span>
                         {s.name.split(" (")[0]}
@@ -1226,6 +1246,17 @@ function App() {
                     ))}
                   </div>
                   <p className={`text-xs ${t.sub} mt-3`}>Yin/Yang prin an: iarna = stocare (Yin, somn, mineralizare), vara = expansiune (Yang, lumină, mișcare). Tranzițiile de sezon (echinocții/solstiții) sunt momentele când tiparele se pot destabiliza — păstrează mesele simple și regulate în acele 2 săptămâni.</p>
+                {previewSeason && (() => {
+  const ps = SEASONS.find(s => s.id === previewSeason);
+  return ps ? (
+    <Card t={t}>
+      <h3 className="font-semibold mb-2">🔍 Previzualizare: {ps.name}</h3>
+      <p className={`text-xs ${t.sub} mb-2`}>Element: {ps.element} · Organe: {ps.organ}</p>
+      <p className="text-sm mb-2"><b>Nota:</b> {ps.note}</p>
+      <p className={`text-xs ${t.sub}`}>🔥 {ps.peat}</p>
+    </Card>
+  ) : null;
+})()}
                 </Card>
                 {seasonAdjust(result).length > 0 && (
                   <Card t={t}>
@@ -1297,7 +1328,10 @@ function shortName(k) {
   const map = { spleenQi: "Qi Splină", kidneyYang: "Yang Rinichi", kidneyYin: "Yin Rinichi", liverQi: "Qi Ficat", liverFire: "Foc Ficat", heartBlood: "Sânge Inimă", heartYin: "Yin Inimă", lungQi: "Qi Plămân", damp: "Umezeală", bloodStasis: "Stază Sânge", stomachYin: "Yin Stomac" };
   return map[k];
 }
-function maxPt(r) { return Math.max(...Object.values(r.patterns)); }
+function maxPt(patterns) {
+  const vals = Object.values(patterns).filter(v => Number.isFinite(v));
+  return vals.length ? Math.max(...vals) : 1;
+}
 function weakestAxis(axes) { return Object.entries(axes).sort((a, b) => a[1] - b[1])[0][0]; }
 function acuFor(r) {
   const sel = Object.entries(r.patterns).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 3).map(([k]) => k);
