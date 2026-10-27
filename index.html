@@ -1398,6 +1398,19 @@ function App() {
             <button onClick={() => setStep(0)} className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>Editează datele</button>
             <button onClick={() => { setStep(0); setP({ ...p, symptoms: [], habits: [] }); }} className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>Profil nou</button>
           </div>
+               )}
+
+        {/* BUTON PLUTITOR EXPORT PDF (vizibil doar la raport) */}
+        {step === 5 && result && (
+          <button
+            onClick={exportPDF}
+            disabled={isExporting}
+            data-html2canvas-ignore="true"
+            className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-full shadow-2xl font-semibold text-sm transition-all ${t.chipOn} disabled:opacity-50 hover:scale-105`}
+            title="Descarcă raportul complet în format PDF"
+          >
+            {isExporting ? "⏳ Se exportă..." : "📄 Export PDF"}
+          </button>
         )}
       </main>
     </div>
