@@ -14,6 +14,7 @@
 <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="bg-stone-50">
 <div id="root"></div>
@@ -766,6 +767,8 @@ function App() {
   });
   const [saved, setSaved] = useState(store.get("metabalance-profiles") || []);
   const [msg, setMsg] = useState("");
+  const reportRef = React.useRef(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const upd = (k, v) => setP(prev => ({ ...prev, [k]: v }));
   const toggleSymptom = s => setP(prev => ({ ...prev, symptoms: prev.symptoms.includes(s) ? prev.symptoms.filter(x => x !== s) : [...prev.symptoms, s] }));
@@ -790,8 +793,31 @@ function App() {
   stairs: "easy", morningTemp: "", restingPulse: "", tsh: "unknown", menopause: "na", habits: [],
 };
 
-const loadProfile = (e) => {
-  const merged = { ...DEFAULT_P, ...(e?.data || {}) };
+const exportPDF = async () => {
+    if (!reportRef.current || isExporting) return;
+    setIsExporting(true);
+    try {
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename: `MetaBalance_${(p.name || "Profil").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.pdf`,
+        image: { type: "jpeg", quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", scrollY: 0 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] }
+      };
+      await html2pdf().set(opt).from(reportRef.current).save();
+      setMsg("PDF descărcat ✓");
+      setTimeout(() => setMsg(""), 2500);
+    } catch (e) {
+      console.error("PDF export failed:", e);
+      alert("Exportul PDF a eșuat. Încearcă din nou.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const loadProfile = (e) => {
+    const merged = { ...DEFAULT_P, ...(e?.data || {}) };
   // asigură-te că array-urile sunt array-uri
   ["symptoms","habits","tender","eyesNails","skinZones","skinMarks"].forEach(k => {
     if (!Array.isArray(merged[k])) merged[k] = [];
@@ -950,9 +976,9 @@ const loadProfile = (e) => {
 
         {/* STEP 5 — raport */}
         {step === 5 && result && (
-          <div>
+          <div ref={reportRef}>
             {/* tab bar */}
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4" style={{ scrollbarWidth: "thin" }}>
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4" style={{ scrollbarWidth: "thin" }} data-html2canvas-ignore="true">
               {RESULT_TABS.map(tb => (
                 <button key={tb.id} onClick={() => setTab(tb.id)}
                   className={`shrink-0 px-3.5 py-2 rounded-xl text-sm whitespace-nowrap transition-all ${tab === tb.id ? t.chipOn + " font-semibold" : t.chip}`}>
@@ -965,9 +991,15 @@ const loadProfile = (e) => {
             {tab === "general" && (
               <div className="space-y-5">
                 <Card t={t}>
-                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <h2 className="font-semibold text-lg">Raport metabolic integrat</h2>
-                    <button onClick={saveProfile} className={`px-4 py-2 rounded-xl text-sm font-semibold ${t.accent} text-white`}>💾 Salvează</button>
+                    <div className="flex gap-2" data-html2canvas-ignore="true">
+                      <button onClick={saveProfile} className={`px-4 py-2 rounded-xl text-sm font-semibold ${t.accent} text-white`}>💾 Salvează</button>
+                      <button onClick={exportPDF} disabled={isExporting}
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold ${t.chipOn} disabled:opacity-50`}>
+                        {isExporting ? "⏳ Se exportă..." : "📄 Export PDF"}
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
@@ -1311,8 +1343,8 @@ const loadProfile = (e) => {
               {step === 4 ? "Generează raportul ✨" : "Continuă →"}
             </button>
           </div>
-        ) : (
-          <div className="flex gap-2 mt-6">
+               ) : (
+          <div className="flex gap-2 mt-6" data-html2canvas-ignore="true">
             <button onClick={() => setStep(0)} className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>Editează datele</button>
             <button onClick={() => { setStep(0); setP({ ...p, symptoms: [], habits: [] }); }} className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>Profil nou</button>
           </div>
