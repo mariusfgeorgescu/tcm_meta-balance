@@ -793,24 +793,73 @@ function App() {
   stairs: "easy", morningTemp: "", restingPulse: "", tsh: "unknown", menopause: "na", habits: [],
 };
 
-const exportPDF = async () => {
+  const exportPDF = async () => {
     if (!reportRef.current || isExporting) return;
     setIsExporting(true);
+    
+    // Salvăm tabul curent pentru a reveni la el după export
+    const originalTab = tab;
+    const tabsToExport = RESULT_TABS.map(t => t.id);
+    
     try {
+      // Creăm un container temporar ascuns (în afara ecranului)
+      const tempContainer = document.createElement("div");
+      tempContainer.style.position = "absolute";
+      tempContainer.style.left = "-9999px";
+      tempContainer.style.top = "0";
+      tempContainer.style.width = "800px"; // Lățime fixă pentru un layout curat în PDF
+      tempContainer.style.backgroundColor = "#ffffff";
+      document.body.appendChild(tempContainer);
+      
+      // Randăm fiecare tab pe rând în container
+      for (const tabId of tabsToExport) {
+        setTab(tabId);
+        // Așteptăm ca React să randeze noul tab
+        await new Promise(resolve => setTimeout(resolve, 250));
+        
+        // Clonăm conținutul raportului
+        const currentReport = reportRef.current.cloneNode(true);
+        
+        // Eliminăm elementele care nu trebuie în PDF (butoane, bare)
+        currentReport.querySelectorAll('[data-html2canvas-ignore="true"]').forEach(el => el.remove());
+        
+        // Adăugăm un titlu pentru fiecare secțiune în PDF
+        const tabTitle = RESULT_TABS.find(t => t.id === tabId)?.label || tabId;
+        const headerDiv = document.createElement("div");
+        headerDiv.style.fontSize = "20px";
+        headerDiv.style.fontWeight = "bold";
+        headerDiv.style.margin = "20px 0 10px 0";
+        headerDiv.style.color = "#d97706";
+        headerDiv.style.borderBottom = "2px solid #d97706";
+        headerDiv.style.paddingBottom = "5px";
+        headerDiv.innerText = tabTitle;
+        
+        tempContainer.appendChild(headerDiv);
+        tempContainer.appendChild(currentReport);
+      }
+      
+      // Generăm PDF-ul din containerul temporar
       const opt = {
-        margin: [8, 8, 8, 8],
+        margin: [10, 10, 10, 10],
         filename: `MetaBalance_${(p.name || "Profil").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.pdf`,
         image: { type: "jpeg", quality: 0.95 },
         html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", scrollY: 0 },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: { mode: ["avoid-all", "css", "legacy"] }
       };
-      await html2pdf().set(opt).from(reportRef.current).save();
-      setMsg("PDF descărcat ✓");
+      
+      await html2pdf().set(opt).from(tempContainer).save();
+      
+      // Curățăm
+      document.body.removeChild(tempContainer);
+      setTab(originalTab); // Revenim la tabul original
+      setMsg("PDF complet descărcat ✓");
       setTimeout(() => setMsg(""), 2500);
+      
     } catch (e) {
       console.error("PDF export failed:", e);
       alert("Exportul PDF a eșuat. Încearcă din nou.");
+      setTab(originalTab);
     } finally {
       setIsExporting(false);
     }
