@@ -769,6 +769,7 @@ function App() {
   const [msg, setMsg] = useState("");
   const reportRef = React.useRef(null);
   const [isExporting, setIsExporting] = useState(false);
+  const pdfTemplateRef = React.useRef(null)
 
   const upd = (k, v) => setP(prev => ({ ...prev, [k]: v }));
   const toggleSymptom = s => setP(prev => ({ ...prev, symptoms: prev.symptoms.includes(s) ? prev.symptoms.filter(x => x !== s) : [...prev.symptoms, s] }));
@@ -794,72 +795,98 @@ function App() {
 };
 
   const exportPDF = async () => {
-    if (!reportRef.current || isExporting) return;
+    if (!pdfTemplateRef.current || isExporting) return;
     setIsExporting(true);
     
-    // Salvăm tabul curent pentru a reveni la el după export
-    const originalTab = tab;
-    const tabsToExport = RESULT_TABS.map(t => t.id);
-    
     try {
-      // Creăm un container temporar ascuns (în afara ecranului)
-      const tempContainer = document.createElement("div");
-      tempContainer.style.position = "absolute";
-      tempContainer.style.left = "-9999px";
-      tempContainer.style.top = "0";
-      tempContainer.style.width = "800px"; // Lățime fixă pentru un layout curat în PDF
-      tempContainer.style.backgroundColor = "#ffffff";
-      document.body.appendChild(tempContainer);
+      // 1. Curățăm containerul ascuns
+      const container = pdfTemplateRef.current;
+      container.innerHTML = "";
+
+      // 2. Generăm titlul principal
+      const mainTitle = document.createElement("h1");
+      mainTitle.innerText = `Raport MetaBalance - ${p.name || "Profil"}`;
+      mainTitle.style.fontSize = "28px";
+      mainTitle.style.color = "#d97706";
+      mainTitle.style.marginBottom = "20px";
+      mainTitle.style.borderBottom = "2px solid #d97706";
+      mainTitle.style.paddingBottom = "10px";
+      container.appendChild(mainTitle);
+
+      // 3. Funcție ajutătoare pentru a adăuga secțiuni
+      const addSection = (title, contentHtml) => {
+        const sec = document.createElement("div");
+        sec.style.marginBottom = "30px";
+        sec.style.pageBreakInside = "avoid"; // Să nu taie secțiunea la mijloc
+        
+        const h2 = document.createElement("h2");
+        h2.innerText = title;
+        h2.style.fontSize = "20px";
+        h2.style.color = "#444";
+        h2.style.marginBottom = "10px";
+        h2.style.borderBottom = "1px solid #ccc";
+        sec.appendChild(h2);
+
+        const content = document.createElement("div");
+        content.innerHTML = contentHtml;
+        content.style.fontSize = "14px";
+        content.style.lineHeight = "1.5";
+        sec.appendChild(content);
+        
+        container.appendChild(sec);
+      };
+
+      // 4. GENERĂM CONȚINUTUL PENTRU FIECARE TAB (folosind datele din `result`)
       
-      // Randăm fiecare tab pe rând în container
-      for (const tabId of tabsToExport) {
-        setTab(tabId);
-        // Așteptăm ca React să randeze noul tab
-        await new Promise(resolve => setTimeout(resolve, 250));
-        
-        // Clonăm conținutul raportului
-        const currentReport = reportRef.current.cloneNode(true);
-        
-        // Eliminăm elementele care nu trebuie în PDF (butoane, bare)
-        currentReport.querySelectorAll('[data-html2canvas-ignore="true"]').forEach(el => el.remove());
-        
-        // Adăugăm un titlu pentru fiecare secțiune în PDF
-        const tabTitle = RESULT_TABS.find(t => t.id === tabId)?.label || tabId;
-        const headerDiv = document.createElement("div");
-        headerDiv.style.fontSize = "20px";
-        headerDiv.style.fontWeight = "bold";
-        headerDiv.style.margin = "20px 0 10px 0";
-        headerDiv.style.color = "#d97706";
-        headerDiv.style.borderBottom = "2px solid #d97706";
-        headerDiv.style.paddingBottom = "5px";
-        headerDiv.innerText = tabTitle;
-        
-        tempContainer.appendChild(headerDiv);
-        tempContainer.appendChild(currentReport);
-      }
-      
-      // Generăm PDF-ul din containerul temporar
+      // --- TAB 1: GENERAL ---
+      addSection("📊 Raport General", `
+        <p><b>IMC:</b> ${result.bmi.toFixed(1)} (${result.bmiLabel})</p>
+        <p><b>BMR:</b> ${result.bmr} kcal | <b>TDEE:</b> ${result.tdee} kcal</p>
+        <p><b>Scor metabolic:</b> ${result.metabolicScore}/100</p>
+        <p><b>TCM dominant:</b> ${PATTERNS[result.dominant].name}</p>
+        <p><b>Peat:</b> Axa cea mai slabă este ${PEAT_AXES[weakestAxis(result.axes)].name}</p>
+        <p><b>Ținte:</b> Proteine ${result.proteinTarget}g, Carbo ${result.carbTarget}g, Grăsimi ${result.fatTarget}g</p>
+      `);
+
+      // --- TAB 2: TCM ---
+      addSection("☯️ Analiză TCM", `
+        <p><b>Tipar dominant:</b> ${PATTERNS[result.dominant].name} (${PATTERNS[result.dominant].desc})</p>
+        <p><b>Tipar secundar:</b> ${PATTERNS[result.secondary].name}</p>
+        <p><b>Reguli terapeutice:</b></p>
+        <ul>${tcmRules(result).map(r => `<li>${r}</li>`).join("")}</ul>
+      `);
+
+      // --- TAB 3: METABOLIC ---
+      const peatList = Object.entries(result.axes).map(([k, v]) => 
+        `<li><b>${PEAT_AXES[k].name}:</b> ${v}/100</li>`
+      ).join("");
+      addSection("🔥 Axe Metabolice (Peat)", `<ul>${peatList}</ul>`);
+
+      // --- TAB 4: ALIMENTE ---
+      const favFoods = FOOD_FAVOR.map(c => `<li><b>${c.cat}:</b> ${c.items.map(i => i.n).join(", ")}</li>`).join("");
+      addSection("🥣 Alimente Recomandate", `<ul>${favFoods}</ul>`);
+
+      // --- TAB 5: PLAN ---
+      const plan = planFor(p, result).map(x => `<li>${x}</li>`).join("");
+      addSection("📋 Plan Practic", `<ol>${plan}</ol>`);
+
+      // 5. Generăm PDF-ul din acest container
       const opt = {
-        margin: [10, 10, 10, 10],
-        filename: `MetaBalance_${(p.name || "Profil").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.pdf`,
-        image: { type: "jpeg", quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", scrollY: 0 },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["avoid-all", "css", "legacy"] }
+        margin: [15, 15, 15, 15],
+        filename: `MetaBalance_${(p.name || "Profil").replace(/\s+/g, "_")}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
       };
       
-      await html2pdf().set(opt).from(tempContainer).save();
+      await html2pdf().set(opt).from(container).save();
       
-      // Curățăm
-      document.body.removeChild(tempContainer);
-      setTab(originalTab); // Revenim la tabul original
       setMsg("PDF complet descărcat ✓");
       setTimeout(() => setMsg(""), 2500);
       
     } catch (e) {
       console.error("PDF export failed:", e);
       alert("Exportul PDF a eșuat. Încearcă din nou.");
-      setTab(originalTab);
     } finally {
       setIsExporting(false);
     }
@@ -884,8 +911,16 @@ function App() {
 
   const seasonIdx = SEASONS.findIndex(s => s.id === (result?.season?.id));
 
-  return (
+ return (
     <div className={`min-h-screen ${t.page} ${t.text} transition-colors`}>
+      
+      {/* ZONĂ ASCUNSĂ PENTRU EXPORT PDF */}
+      <div 
+        ref={pdfTemplateRef} 
+        style={{ position: "absolute", left: "-9999px", top: 0, width: "800px", background: "white", color: "black", padding: "20px" }}
+      >
+         {/* Aici vom pune conținutul generat special pentru PDF */}
+      </div>
       <header className={`sticky top-0 z-10 ${t.card} border-b ${t.border} px-4 py-3 flex items-center justify-between`}>
         <div>
           <h1 className="font-bold text-lg leading-tight">☯️🔥 MetaBalance <span className={`text-xs font-normal ${t.sub}`}>PRO</span></h1>
@@ -1044,11 +1079,7 @@ function App() {
                     <h2 className="font-semibold text-lg">Raport metabolic integrat</h2>
                     <div className="flex gap-2" data-html2canvas-ignore="true">
                       <button onClick={saveProfile} className={`px-4 py-2 rounded-xl text-sm font-semibold ${t.accent} text-white`}>💾 Salvează</button>
-                      <button onClick={exportPDF} disabled={isExporting}
-                        className={`px-4 py-2 rounded-xl text-sm font-semibold ${t.chipOn} disabled:opacity-50`}>
-                        {isExporting ? "⏳ Se exportă..." : "📄 Export PDF"}
-                      </button>
-                    </div>
+                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
