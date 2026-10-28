@@ -1,5 +1,3 @@
----
-
 <!DOCTYPE html>
 <html lang="ro">
 <head>
@@ -565,10 +563,10 @@ const FOOD_CONFLICTS = [
 
 /* --- suplimente --- */
 const SUPPLEMENTS = [
-  { n: "Gelatină / colagen hidrolizat", dose: "10–15 g/zi în suc cald sau bulion", when: "zilnic, orice anotimp", tcm: "hrănește Yin-ul și lichidele — cel mai sigur „tonic“", peat: "glicină: anti-inflamator, echilibrează triptofanul excesiv, protejează intestinul", cautions: "practic fără riscuri", showIf: () => true, conflict: "none" },
+  { n: "Gelatină / colagen hidrolizat", dose: "10–15 g/zi în suc cald sau bulion", when: "zilnic, orice anotimp", tcm: "hrănește Yin-ul și lichidele — cel mai sigur „tonic“", peat: "glicină: anti-inflamator, echilibrează triptofanul excesiv, protejează intestinul", cautions: "practic fără riscuri", showIf: () => true, base: true, conflict: "none" },
   { n: "Vitamina E (tocopherols + tocotrienols)", dose: "100–200 UI amestec natural, cu masă", when: "zilnic dacă consumi PUFA sau ai semne estrogenice", tcm: "fără corespondent clasic; acționează ca antioxidant al Sângelui", peat: "anti-estrogenic, protejează membranele de peroxidarea PUFA, sprijină fertilitatea", cautions: "doze mari lungi → tensiune; alege amestec natural, nu sintetic", showIf: s => s.axes.estrogen < 80 || s.habits.includes("pufa") || s.p.bmi >= 25, conflict: "low" },
   { n: "Vitamina A (retinol, din ficat sau ulei-cod)", dose: "5–10 000 UI/zi din alimentație; supliment doar 2–3×/săpt", when: "toamna/iarna, cu vitamina D", tcm: "hrănește Sângele de Ficat („ficatul deschide în ochi“)", peat: "antagonist natural al estrogenului; esențial pentru tiroidă (receptorul T3)", cautions: "NU mega-doze cronice; sarcina = maximum atenție", showIf: s => s.axes.thyroid < 85 || s.p.symptoms.includes("Căderea părului") || s.p.symptoms.includes("Piele uscată / mată"), conflict: "low" },
-  { n: "Vitamina D3 + K2 (MK-4/MK-7)", dose: "1000–4000 UI D3 / zi toamna-iarna; 100–200 mcg K2", when: "octombrie–aprilie (sau mereu dacă nu ieși la soare)", tcm: "Yang-ul soarelui concentrat — tonifică Yang de Rinichi", peat: "susține imunitatea, metabolismul calciului, dispoziția; Peat preferă doze moderate + soare", cautions: "monitorizează 25(OH)D la doze mari; nu fără K2 dacă iei calciu", showIf: () => true, conflict: "none" },
+  { n: "Vitamina D3 + K2 (MK-4/MK-7)", dose: "1000–4000 UI D3 / zi toamna-iarna; 100–200 mcg K2", when: "octombrie–aprilie (sau mereu dacă nu ieși la soare)", tcm: "Yang-ul soarelui concentrat — tonifică Yang de Rinichi", peat: "susține imunitatea, metabolismul calciului, dispoziția; Peat preferă doze moderate + soare", cautions: "monitorizează 25(OH)D la doze mari; nu fără K2 dacă iei calciu", showIf: () => true, base: true, conflict: "none" },
   { n: "Magneziu (glicinat / citrat)", dose: "200–400 mg elemental, seara", when: "zilnic la stres, crampe, somn slab", tcm: "calmează Focul/Ficatul, relaxează tendoanele", peat: "cofactor pentru ATP și tiroidă; sedativ natural; anti-cortizol", cautions: "citrattul laxativ la doze mari; glicinatul = mai calmant", showIf: s => s.axes.cortisol < 80 || s.p.symptoms.includes("Somn neodihnitor") || s.p.symptoms.includes("Anxietate / agitație"), conflict: "none" },
   { n: "Niacinamidă (B3)", dose: "50–100 mg/zi cu mâncare", when: "zilnic la metabolism lent", tcm: "fără echivalent clasic", peat: "reduce lipoliza (scade fluxul de acizi grași), protejează NAD+, sprijină digestia", cautions: "doze mari → flush/hepatic; NU niacina în doze mari fără aviz", showIf: s => s.axes.thyroid < 75 || s.habits.includes("pufa"), conflict: "low" },
   { n: "Tiamină (B1, benfotiamină)", dose: "50–100 mg/zi", when: "cicluri de 4–8 săpt la oboseală + digestie slabă", tcm: "sprijină Spleen-ul (metabolismul glucozei)", peat: "cofactor central al metabolismului carbohidraților; deficit = „mecanism de foame“", cautions: "practic sigură", showIf: s => s.axes.bloodSugar < 80 || s.p.symptoms.includes("Foame puternică + slăbiciune dacă nu mănânc") || s.patterns.spleenQi >= 2, conflict: "none" },
@@ -579,7 +577,7 @@ const SUPPLEMENTS = [
   { n: "Rehmannia preparată (Shu Di Huang) / formule clasice", dose: "doar în formula unui practician TCM", when: "Yin de Rinichi golit", tcm: "regele tonicelor de Yin și Sânge", peat: "Peat ar spune: bogată în zahăr — metabolic neutră ca aliment", cautions: "produce Umezeală/balonare la Spleen slab — în formulele clasice se combină cu ghimbir și lemnul-care-calmă (Mu Xiang)", showIf: s => s.patterns.kidneyYin >= 2, conflict: "MEDIUM — cere formulă clasică, nu singură" },
   { n: "Reishi (Ganoderma)", dose: "1–2 g extract/zi", when: "la anxietate + imunitate slabă", tcm: "calmează Shen-ul (spiritul), susține Qi de Plămân și Inimă", peat: "Peat e precaut cu ciupercile (estrogenic/serotonergic în exces), dar doze moderate par ok", cautions: "poate produce Umezeală la Spleen slăbit; lasă sângerări mai abundente la unele persoane", showIf: s => s.p.symptoms.includes("Anxietate / agitație") && s.patterns.damp < 4, conflict: "MEDIUM" },
   { n: "Gheara-mâței (Uncaria tomentosa)", dose: "250–500 mg/zi", when: "dureri articulare / semne de stază", tcm: "în farmacopeea chineză (Gou Teng) „ascunde vântul Ficatului“", peat: "anti-serotonergic, anti-inflamator al țesuturilor", cautions: "prudență la medicație pentru tensiune/sângerare", showIf: s => s.axes.inflammation < 80 || s.patterns.bloodStasis >= 3, conflict: "low" },
-  { n: "Vitamina C din FRUCTE (nu megadoze ascorbate)", dose: "2–3 porții fructe/zi", when: "zilnic", tcm: "fructele hrănesc lichidele și Qi-ul", peat: "Peat: vitamina C reală vine din alimente; megadozele de ascorbat pot oxida", cautions: "nu confunda „vitamina C“ cu 1g+ ascorbic acid pe stomacul gol la glicemie labilă", showIf: () => true, conflict: "none" },
+  { n: "Vitamina C din FRUCTE (nu megadoze ascorbate)", dose: "2–3 porții fructe/zi", when: "zilnic", tcm: "fructele hrănesc lichidele și Qi-ul", peat: "Peat: vitamina C reală vine din alimente; megadozele de ascorbat pot oxida", cautions: "nu confunda „vitamina C“ cu 1g+ ascorbic acid pe stomacul gol la glicemie labilă", showIf: () => true, base: true, conflict: "none" },
   { n: "Extract de crucifere (DIM / I-3-C) — ideal din broccoli/varză GĂTITĂ", dose: "150–250 g crucifere gătite/zi; DIM 100–200 mg doar la nevoie", when: "la semne de estrogen dominant (edeme, SPM, fibroame)", tcm: "cruciferele gătite sunt neutru-rece, curăță Căldura de Stomac și ajută Ficatul; doar cele MURATE în exces pot astringe", peat: "indolii cresc calea 2-hidroxilare a estrogenului (cea protectivă) — cruciferele gătite sunt recomandate, nu evitate", cautions: "nu în sarcină fără aviz; DIM în doze mari poate scădea exagerat formele de estrogen", showIf: s => s.axes.estrogen < 80 || s.p.symptoms.includes("Sâni sensibili înainte de ciclu (SPM)") || s.p.symptoms.includes("Chisturi mamare / fibroame uterine diagnosticate"), conflict: "low" },
   { n: "Progesteron bioidentic (USP, cremă)", dose: "DOAR pe prescripție, după testare (ser/salivă, ideal ziua 21 de ciclu)", when: "estrogen dominant confirmat medical; peri/menopauză cu simptome", tcm: "fără corespondent clasic; funcțional seamănă cu hrănirea Yin-ului și a Sângelui (calmează, protejează)", peat: "Peat a dedicat progesteronului lucrări întregi: îl consideră protectorul central împotriva estrogenului neopus — anti-proliferativ, anti-inflamator, sedativ, susținător tiroidian", cautions: "auto-administrarea fără monitorizare poate dezechilibra întregul profil hormonal; cere endocrinolog/ginecolog", showIf: s => s.axes.estrogen < 70 && (["peri", "meno", "post"].includes(s.p.menopause) || s.p.symptoms.includes("Sâni sensibili înainte de ciclu (SPM)")), conflict: "HIGH — doar cu medicul" },
   { n: "Probiotice fermentate tradiționale (kefir, kimchi gătit)", dose: "porții mici zilnice", when: "la gut slab, dar NU ca salată crudă în exces", tcm: "susțin Spleen-ul și transformă Damp-ul", peat: "microbiota sănătoasă fără prea multă fibru brută", cautions: "la histamină sensibilă, începe cu cantități mici", showIf: s => s.axes.gut < 80, conflict: "low" },
@@ -628,11 +626,21 @@ function currentSeason(d = new Date()) {
 
 function analyze(p) {
   const bmi = p.weight / Math.pow(p.height / 100, 2);
+  let bmiLabel = bmi < 18.5 ? "subponderal" : bmi < 25 ? "normal" : bmi < 30 ? "supraponderal" : "obesitate";
   const waist = parseFloat(p.waist);
   const whtr = (!isNaN(waist) && waist > 50 && waist < 200 && p.height > 100) ? waist / p.height : null;
-  let bmiLabel = bmi < 18.5 ? "subponderal" : bmi < 25 ? "normal" : bmi < 30 ? "supraponderal" : "obesitate";
-  const muscular = p.appearance === "fit" && bmi >= 25 && whtr != null && whtr < 0.5;
-  if (muscular) bmiLabel = "IMC mare — masă musculară probabilă";
+  /* --- grăsime corporală declarată (mult mai relevantă decât IMC) --- */
+  const bf = parseFloat(p.bodyFat);
+  const fSex = p.sex === "f";
+  let fatLabel = null;
+  if (!isNaN(bf) && bf > 3 && bf < 65) {
+    fatLabel = bf < (fSex ? 14 : 6) ? "grăsime foarte puțină" : bf < (fSex ? 21 : 14) ? "compoziție atletică" : bf < (fSex ? 25 : 18) ? "grăsime în interval normal" : bf < (fSex ? 32 : 25) ? "grăsime peste medie" : "adipozitate";
+  }
+  /* --- „greu dar nu gras": mușchi, nu grăsime --- */
+  const leanBuild = (fatLabel && bf < (fSex ? 18 : 14) && bmi >= 25) || (p.appearance === "fit" && bmi >= 25 && whtr != null && whtr < 0.5);
+  const muscular = leanBuild;
+  if (leanBuild) bmiLabel = "IMC mare — masă musculară, nu adipozitate";
+  else if (fatLabel) bmiLabel = fatLabel;
   else if (bmi < 25 && whtr != null && whtr >= 0.53) bmiLabel = "IMC „normal”, dar talie relativ mare";
   else if (bmi >= 25 && whtr != null && whtr < 0.5) bmiLabel = "IMC peste 25, dar distribuție sănătoasă";
 
@@ -858,7 +866,7 @@ function analyze(p) {
   const carbTarget = Math.round((tdee * 0.55) / 4);
   const fatTarget = Math.round((tdee * 0.25) / 9);
 
-  return { bmi, bmiLabel, whtr, muscular, patterns: pt, ptNorm, dominant, secondary, dominantScore, axes, axisHits, metabolicScore, bmr, tdee, proteinTarget, carbTarget, fatTarget, season: currentSeason() };
+  return { bmi, bmiLabel, whtr, fatLabel, bodyFatPct: (fatLabel ? bf : null), muscular, patterns: pt, ptNorm, dominant, secondary, dominantScore, axes, axisHits, metabolicScore, bmr, tdee, proteinTarget, carbTarget, fatTarget, season: currentSeason() };
 }
 
 /* ============================== UI ============================== */
@@ -920,7 +928,7 @@ function App() {
   const [step, setStep] = useState(0);
   const [tab, setTab] = useState("general");
   const [p, setP] = useState({
-    name: "", sex: "m", age: 35, height: 175, weight: 75, waist: "", activity: "light", appearance: "normal", conditions: [],
+    name: "", sex: "m", age: 35, height: 175, weight: 75, waist: "", bodyFat: "", activity: "light", appearance: "normal", conditions: [],
     symptoms: [],
     temp: "", tongueBody: "", tongueCoat: "", thirst: "", stool: "", stoolFreq: "", morningTaste: "",
     sweat: "", sleep: "", emotion: "", pain: "", digestionRaw: "", energy: "",
@@ -1007,6 +1015,10 @@ function App() {
             <Field t={t} label="Circumferința taliei (cm) — opțional, dar dezvăluie ce nu poate IMC-ul">
               <input type="number" value={p.waist} onChange={e => upd("waist", e.target.value)} placeholder="ex. 84" className={`w-full px-3 py-2 rounded-xl border ${t.input}`} />
               <p className={`text-xs ${t.sub} mt-1`}>Raportul talie/înălțime sub 0,5 = distribuție sănătoasă. IMC singur nu distinge mușchiul de grăsime: un culturist cu IMC 28 și talie sub 0,5×înălțime e „supraponderal” doar pe hârtie. Măsoară la jumătatea dintre ultimul coastă și creasta iliacă, relaxat, dimineața.</p>
+            </Field>
+            <Field t={t} label="Grăsime corporală estimată (%) — opțional, dar spune mai mult decât cântarul">
+              <input type="number" value={p.bodyFat} onChange={e => upd("bodyFat", e.target.value)} placeholder="ex. 22" className={`w-full px-3 py-2 rounded-xl border ${t.input}`} />
+              <p className={`text-xs ${t.sub} mt-1`}>Dacă ai o balanță cu bioimpedanță sau o estimare de la medic/antrenor, scrie valoarea aici. E cifra care contează cu adevărat: doi oameni cu același IMC pot avea grăsime corporală foarte diferită. Dacă nu o cunoști, lasă gol — folosim talia și build-ul.</p>
             </Field>
             <Field t={t} label="Nivel de activitate">
               <div className="flex flex-wrap gap-2">
@@ -1140,8 +1152,8 @@ function App() {
                   )}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
-                      ["IMC", result.bmi.toFixed(1), result.bmiLabel],
-                      ["BMR", result.bmr + " kcal", "metabolism bazal"],
+                      [result.fatLabel ? "Compoziție" : "IMC", result.fatLabel ? result.bodyFatPct + "%" : result.bmi.toFixed(1), result.fatLabel || result.bmiLabel],
+                      ["MCR", result.bmr + " kcal", "metabolism de bază (repaus)"],
                       ["TDEE", result.tdee + " kcal", "consum zilnic"],
                       ["Scor metabolic", result.metabolicScore + "/100", result.metabolicScore > 70 ? "bun" : result.metabolicScore > 45 ? "mediu" : "de optimizat"],
                     ].map(([k, v, s]) => (
@@ -1153,14 +1165,24 @@ function App() {
                     ))}
                   </div>
                   {result.whtr != null && (
-                    <p className={`text-xs ${t.sub} mt-4`}>📏 Raport talie/înălțime: <b className={t.text}>{result.whtr.toFixed(2)}</b> {result.whtr < 0.5 ? "— sub 0,50: distribuție sănătoasă a grăsimii" : "— peste 0,50: grăsimea tinde spre centru (riscul metabolic vine din talie, nu din cântar)"}. {result.muscular ? "IMC-ul tău mare vine cel mai probabil din masă musculară — nu aplica restricții calorice gândite pentru adipozitate." : ""} IMC singur nu vede diferența mușchi/grăsime — de aceea talia contează.</p>
+                    <p className={`text-xs ${t.sub} mt-4`}>📏 Raport talie/înălțime: <b className={t.text}>{result.whtr.toFixed(2)}</b> {result.whtr < 0.5 ? "— sub 0,50: distribuție sănătoasă a grăsimii" : "— peste 0,50: grăsimea tinde spre centru (riscul metabolic vine din talie, nu din cântar)"}. {result.muscular ? "IMC-ul tău mare vine din masă musculară — nu aplica restricții calorice gândite pentru adipozitate." : ""}</p>
                   )}
+                  <p className={`text-xs ${t.sub} mt-2`}>{result.bodyFatPct ? <>🧬 <b>Grăsime corporală: {result.bodyFatPct}%</b> — {result.fatLabel}. Aceasta e cifra care contează cu adevărat: doi oameni cu același IMC pot avea grăsime corporală foarte diferită.</> : "Nu ai indicat % de grăsime corporală — dacă ai o balanță cu bioimpedanță sau o estimare medicală, adaug-o la pasul Date și raportul o ia în calcul."}</p>
+                </Card>
+                <Card t={t}>
+                  <h3 className="font-semibold mb-3">📊 Cifrele tale, pe înțelesul tuturor</h3>
+                  <ul className={`text-sm ${t.sub} space-y-2 list-disc list-inside`}>
+                    <li><b>IMC</b> = greutate raportată la înălțime. O cifră brută, care nu știe diferența dintre 1 kg de mușchi și 1 kg de grăsime. Un om „greu dar nu gras” (mușchi mult, talie mică) apare fals ca „supraponderal” — de aceea uităm IMC-ul și privim <b>talia</b> și <b>grăsimea corporală</b>.</li>
+                    <li><b>Metabolismul de bază (MCR)</b> = caloriile arse în repaus, în 24 de ore: respirație, inimă, creier, menținerea căldurii corpului. E „factura de întreținere” — arzi chiar și dormind.</li>
+                    <li><b>Consumul zilnic total (TDEE)</b> = metabolismul de bază plus ce arzi prin mișcare. Mănânci constant peste → acumulezi; constant sub → slăbești. Un metabolism sănătos înseamnă să mănânci aproape de această cifră, cu mâncare reală.</li>
+                    <li><b>Scorul metabolic</b> = media axelor Peat (tiroidă, cortizol, glicemie, estrogen, inflamație, intestin), scară 0–100. Peste 70 = motor bun, sub 45 = de optimizat.</li>
+                  </ul>
                 </Card>
                 <Card t={t}>
                   <h3 className="font-semibold mb-3">Sinteza în 3 puncte</h3>
                   <ul className="space-y-3 text-sm">
                     <li>☯️ <b>TCM:</b> {result.dominant ? <>tipar dominant <b>{PATTERNS[result.dominant].name}</b> (element <b>{PATTERNS[result.dominant].element}</b>), secundar: {result.secondary ? PATTERNS[result.secondary].name : "nesemnificativ"}.</> : <>profil <b>echilibrat</b> — niciun tipar de organ atinge pragul de relevanță (2+ semne). Menține mesele regulate, somnul și mișcarea.</>}</li>
-                    <li>🔥 <b>Peat:</b> {weakestAxis(result.axes) ? <>axa cea mai slabită este <b>{PEAT_AXES[weakestAxis(result.axes)].name}</b> — vezi tabul Metabolic pentru detaliile specifice.</> : <>toate axele metabolice sunt în formă bună (peste 90/100) — nu există o „axă slabă”; menține ritmul actual.</>}</li>
+                    <li>🔥 <b>Peat:</b> {weakestAxis(result.axes) ? <>axa cea mai sensibilă e <b>{PEAT_AXES[weakestAxis(result.axes)].name}</b> ({result.axes[weakestAxis(result.axes)]}/100), pe baza a: <b className={t.accentText}>{(result.axisHits[weakestAxis(result.axes)] || []).slice(0, 3).join("; ") || "răspunsurile tale de la pașii Simptome / Semne / Obiceiuri"}</b>. Detalii în tabul Metabolic.</> : <>toate axele metabolice sunt în formă bună (peste 80/100) — nu există o „axă slabă”; menține ritmul actual.</>}</li>
                     <li>🍂 <b>Anotimp curent:</b> <b>{result.season.name}</b> ({result.season.element}, organe: {result.season.organ}) — recomandările sezoniere sunt în tabul Anotimp.</li>
                   </ul>
                 </Card>
@@ -1304,7 +1326,7 @@ function App() {
               <div className="space-y-5">
                 <Card t={t}>
                   <h3 className="font-semibold mb-1">👐 Presopunctură, reflexoterapie & Tai Chi / Qigong</h3>
-                  <p className={`text-sm ${t.sub} mb-1`}>Protocol generat pentru tiparele tale TCM cu scor ≥ 3: <b className={t.text}>{acuFor(result).map(k => PATTERNS[k].name).join(" · ") || (result.dominant ? PATTERNS[result.dominant].name : "niciun tipar relevant — vezi tabul General")}</b>.</p>
+                  <p className={`text-sm ${t.sub} mb-1`}>Protocol generat pentru tiparele tale TCM cu scor ≥ 3: <b className={t.text}>{acuFor(result).map(k => PATTERNS[k].name).join(" · ") || (result.dominant ? PATTERNS[result.dominant].name : "profil echilibrat — a se vedea tabul Mecanisme pentru indicații")}</b>.</p>
                   <p className={`text-xs ${t.sub}`}>Apasă ferm, fără durere, respirând adânc, 1–2 min/punct, zilnic. Reflexoterapia: masează zonele de pe talpă 3–5 min. Tai Chi: 5–10 min/zi, mișcările lente sunt partea „yang“ blândă a terapiei.</p>
                 </Card>
                 {acuFor(result).map(k => (
@@ -1373,9 +1395,10 @@ function App() {
                 ) : (
                   <Card t={t}>
                     <h3 className="font-semibold mb-1">🎯 Profil echilibrat</h3>
-                    <p className={`text-sm ${t.sub}`}>Niciun tipar TCM peste prag și toate axele peste 80 — nu există recomandări prioritare de urgență. Folosește listele generale de mai jos ca mențenanță.</p>
+                    <p className={`text-sm ${t.sub}`}>Niciun tipar TCM peste pragul de relevanță și toate axele metabolice peste 80/100 — <b>nu există recomandări țintite de făcut</b>: n-ar fi generate de profilul tău, ci copiate dintr-o listă generală. A se vedea tabul Mecanisme pentru indicații de mențenanță (alimentație de bază, stil de viață, Educație).</p>
                   </Card>
                 )}
+                {(Object.entries(result.patterns).filter(([, v]) => v >= 2).length > 0 || Object.entries(result.axes).filter(([, v]) => v < 80).length > 0) && (<>
                 {FOOD_FAVOR.map(cat => (
                   <Card key={cat.cat} t={t}>
                     <h3 className="font-semibold mb-3">✅ {cat.cat}</h3>
@@ -1403,6 +1426,7 @@ function App() {
                     </div>
                   </Card>
                 ))}
+                </>)}
                 <Card t={t}>
                   <h3 className="font-semibold mb-3">⚖️ Conflicte TCM × Peat — și cum le rezolvi</h3>
                   <div className="space-y-3">
@@ -1427,7 +1451,13 @@ function App() {
                   <p className={`text-sm ${t.sub} mb-1`}>Filtrat după tiparele tale TCM și axele Peat. Aparate în ordinea importanței.</p>
                   <p className={`text-xs ${t.sub} mb-4`}>⚠️ Dozele sunt orientative; la orice condiție medicală sau medicație, verifică cu medicul înainte.</p>
                 </Card>
-                {SUPPLEMENTS.filter(s => s.showIf({ p, patterns: result.patterns, axes: result.axes, habits: p.habits })).map((s, idx) => (
+                {!result.dominant && !weakestAxis(result.axes) && (
+                  <Card t={t}>
+                    <h3 className="font-semibold mb-1">🌿 Profil echilibrat</h3>
+                    <p className={`text-sm ${t.sub}`}>Nicio axă metabolică sub 80/100 și niciun tipar TCM dominant — <b>nu ai nevoie de protocol țintit</b>: suplimentele „de rezolvat problemă” ar fi inutile la profilul tău. A se vedea tabul Mecanisme pentru indicații de mențenanță. Mai jos rămân doar bazele potrivite oricui.</p>
+                  </Card>
+                )}
+                {SUPPLEMENTS.filter(s => s.showIf({ p, patterns: result.patterns, axes: result.axes, habits: p.habits })).filter(s => result.dominant || weakestAxis(result.axes) || s.base).map((s, idx) => (
                   <Card key={s.n} t={t}>
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <h3 className="font-semibold text-sm">{idx + 1}. {s.n}</h3>
@@ -1525,10 +1555,15 @@ function App() {
             </button>
           </div>
         ) : (
-          <div className="flex gap-2 mt-6 print:hidden">
-            <button onClick={() => setStep(0)} className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>Editează datele</button>
-            <button onClick={() => { setStep(0); setP({ ...p, symptoms: [], habits: [] }); }} className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>Profil nou</button>
+          <div className="flex flex-wrap gap-2 mt-2 print:hidden">
+            <button onClick={() => setStep(0)} className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>✏️ Date de bază</button>
+            <button onClick={() => setStep(1)} className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>✏️ Simptome</button>
+            <button onClick={() => setStep(2)} className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>✏️ Semne TCM</button>
+            <button onClick={() => setStep(3)} className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>✏️ Examen fizic</button>
+            <button onClick={() => setStep(4)} className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>✏️ Obiceiuri</button>
+            <button onClick={() => { setStep(0); setP({ ...p, symptoms: [], habits: [] }); }} className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>🆕 Profil nou</button>
           </div>
+          <p className={`text-xs text-center mt-2 mb-4 print:hidden ${t.sub}`}>Schimbă orice pas de mai sus, apoi apasă „Generează raportul ✨” — raportul se recalculează automat din noile răspunsuri.</p>
         )}
         {step === 5 && (
           <button onClick={() => { setPrinting(true); setTimeout(() => { window.print(); setPrinting(false); }, 200); }}
@@ -1548,7 +1583,7 @@ function shortName(k) {
   return map[k];
 }
 function maxPt(r) { return Math.max(...Object.values(r.patterns)); }
-function weakestAxis(axes) { const es = Object.entries(axes).sort((a, b) => a[1] - b[1]); return es[0][1] >= 90 ? null : es[0][0]; }
+function weakestAxis(axes) { const es = Object.entries(axes).sort((a, b) => a[1] - b[1]); return es[0][1] >= 80 ? null : es[0][0]; }
 function acuFor(r) {
   const sel = Object.entries(r.patterns).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 3).map(([k]) => k);
   return sel.length ? sel : (r.dominant ? [r.dominant] : []);
