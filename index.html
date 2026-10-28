@@ -1554,7 +1554,7 @@ function App() {
               {step === 4 ? "Generează raportul ✨" : "Continuă →"}
             </button>
           </div>
-        ) : (
+        ) : (<>
           <div className="flex flex-wrap gap-2 mt-2 print:hidden">
             <button onClick={() => setStep(0)} className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>✏️ Date de bază</button>
             <button onClick={() => setStep(1)} className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>✏️ Simptome</button>
@@ -1564,7 +1564,7 @@ function App() {
             <button onClick={() => { setStep(0); setP({ ...p, symptoms: [], habits: [] }); }} className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>🆕 Profil nou</button>
           </div>
           <p className={`text-xs text-center mt-2 mb-4 print:hidden ${t.sub}`}>Schimbă orice pas de mai sus, apoi apasă „Generează raportul ✨” — raportul se recalculează automat din noile răspunsuri.</p>
-        )}
+        </>)}
         {step === 5 && (
           <button onClick={() => { setPrinting(true); setTimeout(() => { window.print(); setPrinting(false); }, 200); }}
             className="fixed bottom-4 right-4 z-20 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-lg bg-amber-600 text-white print:hidden">
