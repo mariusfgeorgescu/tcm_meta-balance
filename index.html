@@ -1,3 +1,5 @@
+---
+
 <!DOCTYPE html>
 <html lang="ro">
 <head>
@@ -20,8 +22,6 @@
 <script type="text/babel" data-presets="react">
 const { useState, useMemo } = React;
 const { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } = Recharts;
-
-
 
 /* ============================================================
    MetaBalance PRO — profil metabolic profund:
@@ -259,7 +259,72 @@ const CONDITIONS = [
   { id: "depr", label: "Depresie / anxietate diagnosticată", pt: { liverQi: 1, heartYin: 2 }, ax: { cortisol: 10 }, hit: "diagnostic psihiatric — axa cortizolului afectată" },
 ];
 
-/* --- protocol presopunctură / reflexoterapie / tai chi pe tipar --- */
+/* --- recomandări alimentare personalizate pe tipar/axă --- */
+const FOOD_MATCH = {
+  spleenQi: ["Ghimbir proaspăt ras în ceai cald, dimineața", "Cartofi copți / piure cu unt — NU reci", "Orez alb bine fiert", "Mere coapte cu scorțișoară", "Mese regulate la ore fixe — remediu în sine la Spleen"],
+  damp: ["Ceai slab de ghimbir + coajă de portocală", "Redu dulce + gras combinate (patiserie, frișcă)", "Plimbare 10 min după fiecare masă", "Fructe COAPTE, nu crude pe stomacul gol"],
+  kidneyYang: ["Scorțișoară în doze mici, în lapte cald", "Supă de oase cu ghimbir", "Creveți / scoici (tonifică Yang de Rinichi)", "ZERO alimente și băuturi reci"],
+  kidneyYin: ["Gelatină / bulion zilnic", "Pere coapte", "Lapte cald seara", "Culcare înainte de 23:00 — Yin-ul se repară noaptea"],
+  stomachYin: ["Supe cu gelatină, mese mici și dese", "Pere coapte și lichide la temperatura camerei", "Evită alimente foarte uscate/prăjite"],
+  liverQi: ["Ceai de mentă (mișcă Qi-ul)", "Portocale și citrice", "Mișcare în aer liber zilnic", "Fără alcool și fără mâncat enervat"],
+  liverFire: ["Mentă + chrysanthemum (floare de crizantemă)", "Redu cafeaua, alcoolul, condimentele fierbinți", "Rădăcinoase gătite (țelină, morcov, pătrunjel-rădăcină)"],
+  heartBlood: ["Ficat de vită 1–2×/săpt (tonic de Sânge clasic)", "Ouă gătite", "Smochine și curmale în doze mici", "Somn liniștit — Sângele se face noaptea"],
+  heartYin: ["Lapte cald cu miere seara", "Respirație 4-7-8, fără ecrane 1h înainte de culcare", "Gelatină în suc de fructe"],
+  lungQi: ["Miere mică doze (hrănește Plămânul)", "Pere coapte (fructul Plămânului)", "Respirații profunde dimineața, gât acoperit la vânt"],
+  bloodStasis: ["Ghimbir + scorțișoară mică doze la mese (mișcă Sângele)", "Plimbări + qigong zilnic", "Vin roșu mic? nu — evită alcoolul; ceai de ghimbir în schimb"],
+};
+const AX_FOOD = {
+  thyroid: ["Fructe zilnic (portocale, cireșe) — potasiu susține conversia T4→T3", "Ouă + ficat (retinol, seleniu)", "Elimină complet uleiurile de semințe (vezi tabul De evitat)", "Temperatura axilară matinală ca barometru"],
+  cortisol: ["Lapte cald + miere înainte de culcare", "Gelatină la mese (glicină calmează)", "Carbohidrați la fiecare 3–4h — foamea e stres", "Lumină naturală dimineața"],
+  estrogen: ["Crucifere GĂTITE zilnic (I3C/DIM orientează estrogenul pe calea protectivă)", "Salată de morcov ras cu oțet + ulei de măsline (leagă estrogenul din bilă)", "Ficat de vită (retinol anti-estrogenic)", "Zero soia și semințe de in (vezi De evitat)"],
+  bloodSugar: ["Proteine la FIECARE masă", "Miere în loc de siropuri", "Niciodată carbohidrați goi singuri (mere cu cașcaval, nu dulce pe post)", "Mese la 3–4h, fără skipping"],
+  inflammation: ["Gelatină / bulion de oase zilnic (anti-inflamator structural)", "Fructe bogate în vitamina C", "Zero prăjeli și uleiuri de semințe", "Somn 7–9h — citokinele se curăță noaptea"],
+  gut: ["Gelatină + bulion (hrănește mucoasa)", "Fructe coapte, nu crude", "Morcov crud ras cu oțet și ulei de măsline („salata de morcov” — leagă endotoxina)", "Probiotice în doze mici crescătoare"],
+};
+
+/* --- puncte de presopunctură pentru afecțiuni pre-existente --- */
+const ACU_COND = {
+  hta: [
+    { n: "LR-3 (Taichong)", loc: "dorsul piciorului, între oasele metatarsiene 1–2", how: "masaj descendent blând 2 min/parte, seara — punctul clasic de „coborâre” a Yang-ului de Ficat" },
+    { n: "KI-1 (Yongquan)", loc: "pe talpă, în adâncitura de la treimea anterioară", how: "apăsare fermă 30 sec × 3 cu degetul mare, seara înainte de culcare — „trage” căldura în jos" },
+  ],
+  gerd: [
+    { n: "PC-6 (Neiguan)", loc: "fața internă a antebrațului, 3 degete sub pliul încheieturii", how: "apăsare blândă 1 min de fiecare parte, la arsuri — punctul clasic anti-greață al medicinei chineze" },
+  ],
+  sii: [
+    { n: "ST-25 (Tianshu)", loc: "2 degete laterale de ombilic, ambele părți", how: "masaj circular în sensul acelor de ceasornic 2 min dimineața — punctele „porții” ale tranzitului" },
+    { n: "LV-3 (Taichong)", loc: "dorsul piciorului, între metatarsienele 1–2", how: "masaj 1 min/parte — SII are la bază stagnarea Qi-ului de Ficat („ficătul „decide”, intestinele execută”)" },
+  ],
+  diabet2: [
+    { n: "ST-36 (Zusanli)", loc: "sub genunchi, lateral de creasta tibiei", how: "apăsare cu pulpa degetului 1 min/parte, înainte de mese — tonifică Spleen/Pancreas" },
+    { n: "SP-6 (Sanyinjiao)", loc: "deasupra gleznei interioare, 4 degete sus", how: "apăsare blândă 1 min/parte, seara — punct de întâlnire al celor 3 meridiane Yin" },
+  ],
+  prediabet: [
+    { n: "ST-36 (Zusanli)", loc: "sub genunchi, lateral de creasta tibiei", how: "apăsare 1 min/parte înainte de mese — sprijin metabolic Spleen/Pancreas" },
+  ],
+  depr: [
+    { n: "HT-7 (Shenmen)", loc: "în pliul încheieturii, pe linia tendonului flexor", how: "apăsare blândă 1 min de fiecare parte, seara — „poarta spiritului”, liniștește inima" },
+    { n: "Anmian („punctul somnului”)", loc: "în spatele urechii, între apofiza mastoidă și insertia sternocleidomastoidianului", how: "apăsare circulară 1 min de fiecare parte la culcare" },
+  ],
+  anemie: [
+    { n: "ST-36 (Zusanli)", loc: "sub genunchi, lateral de tibie", how: "1 min/parte zilnic — punctul clasic de „producere a Sângelui” în TCM" },
+    { n: "BL-17 (Geshu)", loc: "pe spate, la nivelul inferior unghiului inferior al omoplatului, 1,5 degete lateral de coloană", how: "masaj blând, circular, 1 min/parte; în TCM se numește „punctul Hui al Sângelui” — influențează direct producția de Sânge" },
+  ],
+  hepatic: [
+    { n: "LV-14 (Qimen)", loc: "sub linia coastelor, pe verticala mameloanelor", how: "apăsare blândă în timp ce respiri profund, 5 respirații — punctul de deschidere/drenaj al Ficatului" },
+  ],
+  osteo: [
+    { n: "KI-3 (Taixi)", loc: "în spatele maleolei interne, în șanțul dintre tendon și maleolă", how: "apăsare 1 min/parte zilnic — punctul sursă al Yin-ului de Rinichi (osul e țesutul Rinichiului)" },
+  ],
+  cardio: [
+    { n: "PC-6 (Neiguan)", loc: "antebraț intern, 3 degete sub încheietură", how: "apăsare blândă 1 min/parte — punctul clasic al inimii, calmant și reglator" },
+  ],
+  celi: [
+    { n: "ST-36 (Zusanli) + SP-6 (Sanyinjiao)", loc: "sub genunchi / deasupra gleznei interioare", how: "1 min fiecare, zilnic — reconstrucția Spleenului la celiachie cere răbdare (luni)" },
+  ],
+};
+
+
 const ACU = {
   liverQi: { title: "Deblocarea Qi-ului de Ficat (stagnare)", points: [
     { n: "LV-3 (Taichong)", loc: "pe dorsul piciorului, în șanțul între oasele metatarsiene 1 și 2", how: "masaj circular ferm 1–2 min/parte, dimineața — punctul clasic al decongestionării Ficatului" },
@@ -563,7 +628,13 @@ function currentSeason(d = new Date()) {
 
 function analyze(p) {
   const bmi = p.weight / Math.pow(p.height / 100, 2);
-  const bmiLabel = bmi < 18.5 ? "subponderal" : bmi < 25 ? "normal" : bmi < 30 ? "supraponderal" : "obesitate";
+  const waist = parseFloat(p.waist);
+  const whtr = (!isNaN(waist) && waist > 50 && waist < 200 && p.height > 100) ? waist / p.height : null;
+  let bmiLabel = bmi < 18.5 ? "subponderal" : bmi < 25 ? "normal" : bmi < 30 ? "supraponderal" : "obesitate";
+  const muscular = p.appearance === "fit" && bmi >= 25 && whtr != null && whtr < 0.5;
+  if (muscular) bmiLabel = "IMC mare — masă musculară probabilă";
+  else if (bmi < 25 && whtr != null && whtr >= 0.53) bmiLabel = "IMC „normal”, dar talie relativ mare";
+  else if (bmi >= 25 && whtr != null && whtr < 0.5) bmiLabel = "IMC peste 25, dar distribuție sănătoasă";
 
   /* --- constituții TCM --- */
   const pt = { spleenQi: 0, kidneyYang: 0, kidneyYin: 0, liverQi: 0, liverFire: 0, heartBlood: 0, heartYin: 0, lungQi: 0, damp: 0, bloodStasis: 0, stomachYin: 0 };
@@ -783,11 +854,11 @@ function analyze(p) {
   const bmr = Math.round(10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === "f" ? -161 : 5));
   const actMult = { sedentary: 1.2, light: 1.4, active: 1.6, veryActive: 1.8 }[p.activity] || 1.3;
   const tdee = Math.round(bmr * actMult);
-  const proteinTarget = Math.round(p.weight * (bmi >= 25 ? 1.6 : 1.2));
+  const proteinTarget = Math.round(p.weight * (muscular ? 1.8 : bmi >= 25 ? 1.6 : 1.2));
   const carbTarget = Math.round((tdee * 0.55) / 4);
   const fatTarget = Math.round((tdee * 0.25) / 9);
 
-  return { bmi, bmiLabel, patterns: pt, ptNorm, dominant, secondary, dominantScore, axes, axisHits, metabolicScore, bmr, tdee, proteinTarget, carbTarget, fatTarget, season: currentSeason() };
+  return { bmi, bmiLabel, whtr, muscular, patterns: pt, ptNorm, dominant, secondary, dominantScore, axes, axisHits, metabolicScore, bmr, tdee, proteinTarget, carbTarget, fatTarget, season: currentSeason() };
 }
 
 /* ============================== UI ============================== */
@@ -849,7 +920,7 @@ function App() {
   const [step, setStep] = useState(0);
   const [tab, setTab] = useState("general");
   const [p, setP] = useState({
-    name: "", sex: "m", age: 35, height: 175, weight: 75, activity: "light", appearance: "normal", conditions: [],
+    name: "", sex: "m", age: 35, height: 175, weight: 75, waist: "", activity: "light", appearance: "normal", conditions: [],
     symptoms: [],
     temp: "", tongueBody: "", tongueCoat: "", thirst: "", stool: "", stoolFreq: "", morningTaste: "",
     sweat: "", sleep: "", emotion: "", pain: "", digestionRaw: "", energy: "",
@@ -933,6 +1004,10 @@ function App() {
               <Field t={t} label="Înălțime (cm)"><input type="number" value={p.height} onChange={e => upd("height", +e.target.value)} className={`w-full px-3 py-2 rounded-xl border ${t.input}`} /></Field>
               <Field t={t} label="Greutate (kg)"><input type="number" value={p.weight} onChange={e => upd("weight", +e.target.value)} className={`w-full px-3 py-2 rounded-xl border ${t.input}`} /></Field>
             </div>
+            <Field t={t} label="Circumferința taliei (cm) — opțional, dar dezvăluie ce nu poate IMC-ul">
+              <input type="number" value={p.waist} onChange={e => upd("waist", e.target.value)} placeholder="ex. 84" className={`w-full px-3 py-2 rounded-xl border ${t.input}`} />
+              <p className={`text-xs ${t.sub} mt-1`}>Raportul talie/înălțime sub 0,5 = distribuție sănătoasă. IMC singur nu distinge mușchiul de grăsime: un culturist cu IMC 28 și talie sub 0,5×înălțime e „supraponderal” doar pe hârtie. Măsoară la jumătatea dintre ultimul coastă și creasta iliacă, relaxat, dimineața.</p>
+            </Field>
             <Field t={t} label="Nivel de activitate">
               <div className="flex flex-wrap gap-2">
                 {[["sedentary", "Sedentar"], ["light", "Ușor"], ["active", "Activ"], ["veryActive", "Foarte activ"]].map(([id, l]) =>
@@ -1054,7 +1129,6 @@ function App() {
                     <h2 className="font-semibold text-lg">Raport metabolic integrat</h2>
                     <div className="flex gap-2">
                       <button onClick={saveProfile} className={`px-4 py-2 rounded-xl text-sm font-semibold ${t.accent} text-white`}>💾 Salvează</button>
-                      <button onClick={() => { setPrinting(true); setTimeout(() => { window.print(); setPrinting(false); }, 200); }} className="px-4 py-2 rounded-xl text-sm font-semibold border border-stone-400 text-stone-700 bg-white print:hidden">🖨️ Export PDF</button>
                     </div>
                   </div>
                   {(p.conditions || []).length > 0 && (
@@ -1078,12 +1152,15 @@ function App() {
                       </div>
                     ))}
                   </div>
+                  {result.whtr != null && (
+                    <p className={`text-xs ${t.sub} mt-4`}>📏 Raport talie/înălțime: <b className={t.text}>{result.whtr.toFixed(2)}</b> {result.whtr < 0.5 ? "— sub 0,50: distribuție sănătoasă a grăsimii" : "— peste 0,50: grăsimea tinde spre centru (riscul metabolic vine din talie, nu din cântar)"}. {result.muscular ? "IMC-ul tău mare vine cel mai probabil din masă musculară — nu aplica restricții calorice gândite pentru adipozitate." : ""} IMC singur nu vede diferența mușchi/grăsime — de aceea talia contează.</p>
+                  )}
                 </Card>
                 <Card t={t}>
                   <h3 className="font-semibold mb-3">Sinteza în 3 puncte</h3>
                   <ul className="space-y-3 text-sm">
                     <li>☯️ <b>TCM:</b> {result.dominant ? <>tipar dominant <b>{PATTERNS[result.dominant].name}</b> (element <b>{PATTERNS[result.dominant].element}</b>), secundar: {result.secondary ? PATTERNS[result.secondary].name : "nesemnificativ"}.</> : <>profil <b>echilibrat</b> — niciun tipar de organ atinge pragul de relevanță (2+ semne). Menține mesele regulate, somnul și mișcarea.</>}</li>
-                    <li>🔥 <b>Peat:</b> axa cea mai slabită este <b>{PEAT_AXES[weakestAxis(result.axes)].name}</b> — vezi tabul Metabolic pentru detaliile specifice.</li>
+                    <li>🔥 <b>Peat:</b> {weakestAxis(result.axes) ? <>axa cea mai slabită este <b>{PEAT_AXES[weakestAxis(result.axes)].name}</b> — vezi tabul Metabolic pentru detaliile specifice.</> : <>toate axele metabolice sunt în formă bună (peste 90/100) — nu există o „axă slabă”; menține ritmul actual.</>}</li>
                     <li>🍂 <b>Anotimp curent:</b> <b>{result.season.name}</b> ({result.season.element}, organe: {result.season.organ}) — recomandările sezoniere sunt în tabul Anotimp.</li>
                   </ul>
                 </Card>
@@ -1246,12 +1323,59 @@ function App() {
                     <p className="text-xs">🧘 <b>Tai Chi / Qigong:</b> {ACU[k].tai}</p>
                   </Card>
                 ))}
+                {(p.conditions || []).filter(id => ACU_COND[id]).length > 0 && (
+                  <Card t={t}>
+                    <h3 className="font-semibold mb-1">⚕️ Puncte pentru afecțiunile declarate</h3>
+                    <p className={`text-xs ${t.sub} mb-3`}>Supliment la protocolul de mai sus — puncte folosite în clinică TCM pentru afecțiunile bifate de tine la pasul Date.</p>
+                    <div className="space-y-3">
+                      {(p.conditions || []).filter(id => ACU_COND[id]).map(id => (
+                        <div key={id} className={`${t.soft} rounded-xl p-3`}>
+                          <p className="font-medium text-sm">{CONDITIONS.find(c => c.id === id).label}</p>
+                          <div className="mt-1 space-y-1.5">
+                            {ACU_COND[id].map(pt => (
+                              <div key={pt.n}>
+                                <p className={`text-xs font-medium`}>{pt.n}</p>
+                                <p className={`text-xs ${t.sub}`}>📍 {pt.loc}</p>
+                                <p className={`text-xs ${t.sub}`}>🖐️ {pt.how}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
               </div>
             )}
 
             {/* ---------- ALIMENTE ---------- */}
             {(tab === "alimente" || printing) && (
               <div className="space-y-5">
+                {(Object.entries(result.patterns).filter(([, v]) => v >= 2).length > 0 || Object.entries(result.axes).filter(([, v]) => v < 80).length > 0) ? (
+                  <Card t={t}>
+                    <h3 className="font-semibold mb-1">🎯 Recomandate ție acum — generate din profilul tău</h3>
+                    <p className={`text-xs ${t.sub} mb-3`}>Extrase din: tiparele TCM cu scor ≥ 2, axele metabolice sub 80, obiceiurile și afecțiunile declarate. Restul listei de mai jos rămâne context general.</p>
+                    <div className="space-y-3">
+                      {Object.entries(result.patterns).filter(([, v]) => v >= 2).map(([k]) => (
+                        <div key={k} className={`${t.soft} rounded-xl p-3`}>
+                          <p className="font-medium text-sm">☯️ {PATTERNS[k].name} <span className={`text-xs font-normal ${t.sub}`}>({result.patterns[k]} pts)</span></p>
+                          <ul className={`text-xs ${t.sub} list-disc list-inside mt-1`}>{(FOOD_MATCH[k] || []).map(x => <li key={x}>{x}</li>)}</ul>
+                        </div>
+                      ))}
+                      {Object.entries(result.axes).filter(([, v]) => v < 80).map(([k]) => (
+                        <div key={k} className={`${t.soft} rounded-xl p-3`}>
+                          <p className="font-medium text-sm">🔥 Axa: {PEAT_AXES[k].name} <span className={`text-xs font-normal ${t.sub}`}>({result.axes[k]}/100)</span></p>
+                          <ul className={`text-xs ${t.sub} list-disc list-inside mt-1`}>{(AX_FOOD[k] || []).map(x => <li key={x}>{x}</li>)}</ul>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                ) : (
+                  <Card t={t}>
+                    <h3 className="font-semibold mb-1">🎯 Profil echilibrat</h3>
+                    <p className={`text-sm ${t.sub}`}>Niciun tipar TCM peste prag și toate axele peste 80 — nu există recomandări prioritare de urgență. Folosește listele generale de mai jos ca mențenanță.</p>
+                  </Card>
+                )}
                 {FOOD_FAVOR.map(cat => (
                   <Card key={cat.cat} t={t}>
                     <h3 className="font-semibold mb-3">✅ {cat.cat}</h3>
@@ -1406,6 +1530,12 @@ function App() {
             <button onClick={() => { setStep(0); setP({ ...p, symptoms: [], habits: [] }); }} className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-medium border ${t.input}`}>Profil nou</button>
           </div>
         )}
+        {step === 5 && (
+          <button onClick={() => { setPrinting(true); setTimeout(() => { window.print(); setPrinting(false); }, 200); }}
+            className="fixed bottom-4 right-4 z-20 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-lg bg-amber-600 text-white print:hidden">
+            🖨️ Export PDF — tot raportul
+          </button>
+        )}
       </main>
     </div>
   );
@@ -1418,7 +1548,7 @@ function shortName(k) {
   return map[k];
 }
 function maxPt(r) { return Math.max(...Object.values(r.patterns)); }
-function weakestAxis(axes) { return Object.entries(axes).sort((a, b) => a[1] - b[1])[0][0]; }
+function weakestAxis(axes) { const es = Object.entries(axes).sort((a, b) => a[1] - b[1]); return es[0][1] >= 90 ? null : es[0][0]; }
 function acuFor(r) {
   const sel = Object.entries(r.patterns).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 3).map(([k]) => k);
   return sel.length ? sel : (r.dominant ? [r.dominant] : []);
@@ -1503,7 +1633,6 @@ function dayMenu(p, r) {
     { m: "😴 Înainte de somn", x: (r.axes.cortisol < 75 || dry) ? "Lapte cald cu miere + o prafă de sare — triptofan + calciu, scade cortizolul seric." : "Ceai de mentă/mușețel; respir 4-7-8; fără ecrane 1h." },
   ];
 }
-
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 
 /* PWA: înregistrare service worker (graceful dacă lipsește, ex. deschis local file://) */
